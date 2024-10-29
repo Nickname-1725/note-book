@@ -228,7 +228,104 @@ conan0'Brien = "It's a-me, Conan O'Brien!"
 
 </div>
 <h2 id="93A466F5">介绍列表</h2>
+<div class="sheet-wrap"><div class="sheet-caption">简介</div>
+
+
+lisp在Haskell中很有用
+- 三最常用的数据结构
+- 可以用许多不同的方式解决所有问题
+- 本小节探讨列表基础、字符串以及列表推导式
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表的类型</div>
+
+
+在Haskell中，list是同质化数据结构
+- 存储数个相同类型的数据
+- 列表标记为方括号，列表的值用都好分隔
+- 字符串也是列表，如`"hello"`是`['h','e','l','l','o']`的语法糖
+  - 可以对字符串使用列表的函数
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表的语法糖与基本操作</div>
+
+
+1. 列表的拼接：`++`
+   - `[1,2,3,4] ++ [9,10,11,12]`得到`[1,2,3,4,9,10,11,12]`
+   - `"hello" ++ " " ++ "world"`得到`"hello world"`
+   - `['w','0'] ++ ['o','t']`得到`"woot"`
+   - 对于短列表的拼接并没有什么问题，但如果第一个列表长达五千万元素，则会花很长时间
+2. 向列表头部追加元素：`:`
+   - `'A':" SMALL CAT"`得到`"A SMALL CAT"`
+   - `5:[1,2,3,4,5]`得到`[5,1,2,3,4,5]`
+   - `1:2:3:[]`得到`[1,2,3]`
+   > 注意：`[]`, `[[]]`，`[[],[],[]]`是不同的东西
+3. 以索引的方式获取列表元素：`!!`，索引从0开始
+   - `"Steve Buscemi" !! 6`得到`'B'`
+   - `[9.4, 33.2, 96.2, 11.2, 23.25] !! 1`得到`33.2`
+   - 若超出最大索引，则会导致错误
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">嵌套列表</div>
+
+
+列表可以嵌套
+- 列表可以包含列表，甚至可以包含数层
+- 所包含的列表可以长度不同，但必须有相同的类型
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表大小的比较</div>
+
+
+若列表包含的元素可比较，列表也可比较
+- 使用`<`, `<=`, `>`和`>=`比较李诶报
+- 以字典顺序比较
+- 首先比较头部，如果它们相等，接着比较第二个元素，依次类推
+  - `[3,2,1] > [2,1,0]`得到`True`
+  - `[3,2,1] > [2,10,100]`得到`True`
+  - `[3,4,2] > [3,4]`得到`True`
+    *前面的元素都相等，这里应该是列表长度更长者更大*
+  - `[3,4,2] > [2,4]`得到`True`
+  - `[3,4,2] == [3,4,2]`得到`True`
+    *在比较等于号的时候，应该是不存在短路的情况，我也试验了`>=`，应该必须是严格不等于才能逻辑短路*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表的更多操作</div>
+
+
+列表的取用
+1. `head`
+2. `tail`
+3. `last`
+4. `init`
+- 说明：当列表为空，不能使用这些操作，否则会报错
+
+更多实用的基本操作
+1. `length`
+2. `null`
+3. `reverse`
+4. `take`
+5. `drop`
+6. `maximum`
+7. `minimum`
+8. `sum`
+9. `product`
+10. `elem`
+
+</div>
 <h2 id="F4D420FF">Texas ranges</h2>
+<div class="sheet-wrap"><div class="sheet-caption">区间</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">指定步长与注意事项</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">无穷列表</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表的重复</div>
+
+</div>
 <h2 id="D019D8A4">我是列表推导式(list comprehension)</h2>
 <h2 id="DC2A7208">元组(Tuples)</h2>
 <h1 id="FACBD084">Types and Typeclasses</h1>
