@@ -14,6 +14,9 @@
   - [我是列表推导式(list comprehension)](#D019D8A4)
   - [元组(Tuples)](#DC2A7208)
 - [Types and Typeclasses](#FACBD084)
+  - [相信类型(Believe the type)](#9D9FE022)
+  - [类型变量(Type variables)](#2F4ABA0A)
+  - [类型类(Typeclasses)](#93BB1E55)
 </div>
 
 <div class="main">
@@ -327,6 +330,155 @@ lisp在Haskell中很有用
 
 </div>
 <h2 id="D019D8A4">我是列表推导式(list comprehension)</h2>
+<div class="sheet-wrap"><div class="sheet-caption">比方：集合推导式</div>
+
+
+$$S = \{2\cdot x|x\in \mathbb{N}, x\le 10\}$$
+- 左侧的部分称为输出函数
+- $x$是变量，$\mathbb N$是输入集合，$x\le 10$是谓词
+- 表示集合包含所有满足谓词的自然数的双倍
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">使用列表推导式表达</div>
+
+
+- 用列表推导式表达\
+  `[x * 2| x <- [1..10]]`
+- 增加谓词\
+  - `ghci> [x*2 | x <- [1..10], x*2 >= 12]`
+  - ``ghci> [x | x <- [50..100], x `mod` 7 == 3]``
+- 通过谓词修剪列表也称为"过滤"（filtering）
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：boomBangs</div>
+
+
+略（定义一个函数，处理所输入的列表）
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：多个谓词、多个输入列表</div>
+
+
+1. 在一个列表推导式中可以使用多个谓词来过滤列表，结果会满足所有的谓词
+2. 可以从多个列表中获取数据，在没有过滤的情况下，推导式将会产生所有的组合
+   - 例如，从两个长度为4的列表中生成列表，在不过滤的情况下生成的列表长度为16
+   - `ghci> [x*y | x <- [2,5,10], y <- [8,10,11]]`得到`[16,20,22,40,50,55,80,100,110]`
+   - 也可以加入谓词\
+     `ghci> [x*y | x <- [2,5,10], y <- [8,10,11], x*y > 50]`得到`[55,80,100,110]`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">若干个示例</div>
+
+
+1. 将形容词和名词列表组合
+2. 自己实现一个`length`
+3. 除掉非大写字母
+   - 代码
+     ``` Haskell
+     removeNonUppercase st = [c | c <- st, c `elem` ['A'..'Z']]
+     ```
+   - 测试
+     ``` Haskell
+     ghci > removeNonUppercase "Hahaha! Ahahaha!"
+     "HA"
+     ghci > removeNonUppercase "IdontLIKEFROGS"
+     "ILIKEFROGS"
+     ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表推导式的嵌套</div>
+
+
+列表嵌套使用
+- 代码
+  ``` Haskell
+  ghci> let xxs [[1,3,5,2,3,1,2,4,5], [1,2,3,4,5,6,7,8,9],
+  [1,2,4,2,1,6,3,1,3,2,3,6]]
+  ghci> [[x | x <- xs, even x] | xs <- xxs]
+  [[2,2,4],[2,4,6,8],[2,4,2,6,2,6]]
+  ```
+- 说明：可以跨行写列表推导式
+
+</div>
 <h2 id="DC2A7208">元组(Tuples)</h2>
+<div class="sheet-wrap"><div class="sheet-caption">元组与列表的区别</div>
+
+
+相同点：都是将数个值存储成一个值
+
+不同点
+1. 容纳的个数
+   - 列表可以包含无穷多个数字
+   - 元组只能用于你已经知道确切想要组合多少个值
+   - 元组的类型取决于它包含多少个值，以及内部元素的类型
+2. 同质性
+   - 元组不需要是同质的(homogenous)
+   - 元组可以包含数种类型的组合
+
+元组记为括号，包含的组件用逗号分隔
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：存储二维向量</div>
+
+
+- 假设需要存储若干二维变量
+- 问题在于，可能出现类似这样的错误`[[1,2],[8,11,5],[4,5]]`
+- 由于大小为2的元组（对(pair)）具有它自己的类型，因此会避免不同个数的元组位于同一列表中
+- 形如`[(1,2),(8,11,5),(4,5)]`的代码将会报错
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：元组可以用来表达很大范围的数据</div>
+
+
+例如，某人的名称和年龄：`("Christopher", "Walken", 55)`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">元组的性质：更加固定</div>
+
+
+- 元组中的每一片数据都有它自身的类型
+- 不能编写一个通用的方程来向元组添加一个元素——不需要编写元素向一个对(pair)添加元素，或是其它做法
+- 尽管存在单元素列表，并不存在单元素元组——没有意义
+- 和列表类似，如果内部元素可以比较，元组也可以比较
+  - 不能比较不同长度(size)的元组，但可以比较不同长度的列表
+- `fst`和`snd`的用法
+  > 注意：这两个函数只能向pair操作，后文将会介绍如何用不同的方式从元组提取数据
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">zip：产生对(pair)的列表(list)</div>
+
+
+- 获取两个列表，通过将对应的元素组合成对来将它们缝合进一个列表
+- 因为对可以具有不同的类型，所以`zip`可以获取两个不同类型的列表
+- 当两个列表长度不同时，较长者被截断
+  - 可以将有限列表和无限列表缝合
+  - ``` Haskell
+    ghci> zip [1..] ["apple", "orange", "cherry", "mango"]
+    [(1,"apple"),(2,"orange"),(3,"cherry"),(4,"mango")]
+    ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：求得满足条件的三角形</div>
+
+
+问题
+- 求直角三角形
+- 所有的边均为整数
+- 所有的边都小于等于10
+- 周长小于24
+
+解决
+1. 生成所有的三角形，满足所有边小于等于10
+2. 增加条件：假定直角三角形，c为斜边，b不大于c，a不大于b
+3. 增加谓词，周长为24
+4. 得到结果`[(6,8,10)]`
+
+函数式编程的通用方案：
+- 获取初始的一组解
+- 对这些解施加变换，过滤它们，直至获得正确的解
+
+</div>
 <h1 id="FACBD084">Types and Typeclasses</h1>
+<h2 id="9D9FE022">相信类型(Believe the type)</h2>
+<h2 id="2F4ABA0A">类型变量(Type variables)</h2>
+<h2 id="93BB1E55">类型类(Typeclasses)</h2>
 </div>
