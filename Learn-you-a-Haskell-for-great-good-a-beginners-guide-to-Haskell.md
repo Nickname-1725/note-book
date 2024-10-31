@@ -17,6 +17,12 @@
   - [相信类型(Believe the type)](#9D9FE022)
   - [类型变量(Type variables)](#2F4ABA0A)
   - [类型类(Typeclasses)](#93BB1E55)
+- [函数中的语法](#83D31AA0)
+  - [模式匹配](#6388DE55)
+  - [守卫(Guards, guards!)](#BCEB1FBC)
+  - [Where!?](#F7583AAB)
+  - [Let it be](#C02EB15E)
+  - [Case表达式](#7A1F7EDA)
 </div>
 
 <div class="main">
@@ -479,6 +485,146 @@ $$S = \{2\cdot x|x\in \mathbb{N}, x\le 10\}$$
 </div>
 <h1 id="FACBD084">Types and Typeclasses</h1>
 <h2 id="9D9FE022">相信类型(Believe the type)</h2>
+<div class="sheet-wrap"><div class="sheet-caption">静态类型系统与类型推断</div>
+
+
+- 静态类型系统：类型错误将不会通过编译，因此避免了这类错误导致程序崩溃
+- 类型推断：不需要显式写出所有函数和表达式的类型，就可以完成事情
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">查看类型命令:t</div>
+
+
+使用`:t`命令来查看合法表达式的变量
+- 打印出: 表达式+`::`+类型，类型首字母大写
+- `'a'`的类型：`Char`
+- `"HELLO!"`的类型：`[Char]`
+- `(True,'a')`的类型：`(Bool,Char)`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">函数的显式类型声明</div>
+
+
+- 函数也有类型
+- 我们可以给函数编写显式类型声明
+- 从现在开始，我们会给每个编写的函数类型声明
+- 过滤大写字母的函数的类型声明
+  ``` Haskell
+  removeNonUppercase :: [Char] -> [Char]
+  removeNonUppercase st = [c | c <- st, c `elem` ['A'..'Z']]
+  ```
+  也可写成`String -> String`
+- 接收数个参数的函数的类型声明
+  ``` Haskel
+  addThree :: Int -> Int -> Int -> Int
+  addThree x y z = x + y + z
+  ```
+  - 说明：略...
+- 如果你想给出函数的类型签名，但拿不准，你可以写出函数然后用`:t`来检查；函数也是表达式
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">一些常见的类型</div>
+
+
+- `Int`：代表整数，有范围限制，通常在32位机器上的最大可能值为2147483647，最小值-2147483648
+- `Integer`：也代表整数，没有范围限制，可以用来代表大数
+- `Float`：实数单精度浮点数
+- `Bool`：布尔类型，只有两个值`True`和`False`
+- `Char`：代表字符，标记为单引号。一串字符列表是字符串
+- `Tuple`：是类型，但是取决于它们的长度和它们包含的元素的类型；
+  - 理论上有无穷多个元组类型
+  - 空元组`()`也是一种类型，它只有一个值：`()`
+
+</div>
 <h2 id="2F4ABA0A">类型变量(Type variables)</h2>
+<div class="sheet-wrap"><div class="sheet-caption">head函数的类型签名</div>
+
+
+- head函数：返回任意类型的列表的头部
+- 类型签名`head :: [a] -> a`
+- 之前提到类型首字母大写，所以`a`不是一个类型，而是一个类型变量
+- 这就表示它可以是任何类型
+- 如同其它语言中的泛型(generics)，但是在Haskell中更加强大，因为它允许容易地写出非常通用的函数
+- 具有类型变量的函数称为多态函数(polymorphic functions)
+- 尽管类型变量可以有不止一个字母的名字，我们通常将其命名为`a`、`b`、`c`、`d`……
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">fst函数的类型签名</div>
+
+
+- `fst`的类型签名`fst :: (a, b) -> a`
+  - 并不是说`a`和`b`一定是不同的类型
+
+</div>
 <h2 id="93BB1E55">类型类(Typeclasses)</h2>
+<div class="sheet-wrap"><div class="sheet-caption">类型类是一类接口</div>
+
+
+- 类型类是一种接口，定义某些行为
+- 如果一个类型是类型类的一部分，就表明它支持且实现类型类描述的行为
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">等于函数的类型约束</div>
+
+
+- `==`函数的类型签名`(==) :: (Eq a) => a -> a -> Bool`
+- 
+  > 注意：等于操作符，是一个函数，加减乘除和其它所有的操作符也是。\
+  > 如果一个函数只由特殊符号组成，它就会被默认看作是中缀函数\
+  > 如果我们想要检验它的类型、将其传入另一个函数，或者见其作为中缀函数调用，我们必须将其包裹括号
+- `=>`符号：该符号之前的东西被称为 **类型约束**
+- 我们可以将之前的类型声明读作：等于函数后去人以两个具有相同类型的值并返回布尔类型，这两个值的类型必须是`Eq`类的一个成员（是类型约束）
+- 任何比较相等有意义的类型都应当为`Eq`类的一个成员
+- 所有标准的Haskell类型，除了IO（处理输入输出）和函数，都是`Eq`类型类的一个部分
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">一些基础的类型类</div>
+
+
+- `Eq`: 用于支持相等检测的类型
+  - 它的成员实现的函数有`==`和`/=`
+  - 我们之前提到的所有的类型，除了函数，都是`Eq`的一部分，他们都可以检测相等
+- `Ord`: 用于具有顺序的类型
+  - 覆盖了所有标准的比较函数，如`>`、`<`、`>=`、`<=`，这些函数接收`Ord`成员中相同类型的两个值返回一个顺序(ordering)
+  - 顺序(ordering)是一种类型，可以是`GT`, `LT`, 或者`EQ`，表示大于、小于和等于
+  - `Ord`的成员必须首先是`Eq`的成员
+- `Show`: 用于可以作为字符串呈现的类型
+  - 处理该类型类的，最常用的函数是`show`，它接收一个值，其类型是`Show`的成员，将其用字符串表达
+- `Read`: 有点和`Show`反过来
+  - `read`函数接收一个字符串并且返回`Read`类型类中的一个类型
+  - 如果`read "4"`，将会错误，此时GHCI还无法推断应当返回的类型
+  - 一种显式声明表达式雷习惯的方式是输入注解(annotation)
+    ``` Haskell
+    ghci> read "5" :: Int
+    5
+    ghci> read "5" :: Float
+    5.0
+    ghci> (read "5" :: Float) * 4
+    20.0
+    ghci> read "[1,2,3,4]" :: [Int]
+    [1,2,3,4]
+    ghci> read "(3, 'a')" :: (Int, Char)
+    (3, 'a')
+    ```
+- `Enum`: 是顺序排列的类型，他们可以被枚举
+  - `Enum`类型类的主要优点是我们可以将其类型应用于列表区间
+  - 它们也有定义的后继和前继，你可以用`succ`、`pred`函数得到它们
+  - 这一类中的类型有：`()`、`Bool`、`Char`、`Ordering`、`Int`、`Integer`、`Float`、`Double`
+- `Bounded`成员有一个上限和下限
+  - `minBound`和`maxBound`是多态常量
+- `Num`是数值类型类
+  - 它的成员具有类似数字的特性，包括`Int`、`Integer`、`Float`、`Double`
+  - 一种类型如果要加入`Num`，它必须已经是`Show`和`Eq`
+  - `Integral`也是一个类型类，包括`Int`和`Integer`
+  - `Floating`也是一个类型类，包括`Float`和`Double`
+  - `fromIntegral`函数(`(Num b, Integral a) => a -> b`)可以将整数变为更加通用的数字
+    - 注意它的类型签名里面有数个类型约束这是完全合法的，这些类型约束用逗号分隔
+
+</div>
+<h1 id="83D31AA0">函数中的语法</h1>
+<h2 id="6388DE55">模式匹配</h2>
+<h2 id="BCEB1FBC">守卫(Guards, guards!)</h2>
+<h2 id="F7583AAB">Where!?</h2>
+<h2 id="C02EB15E">Let it be</h2>
+<h2 id="7A1F7EDA">Case表达式</h2>
 </div>
