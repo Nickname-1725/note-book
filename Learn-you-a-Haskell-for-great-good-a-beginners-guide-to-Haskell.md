@@ -623,6 +623,138 @@ $$S = \{2\cdot x|x\in \mathbb{N}, x\le 10\}$$
 </div>
 <h1 id="83D31AA0">函数中的语法</h1>
 <h2 id="6388DE55">模式匹配</h2>
+<div class="sheet-wrap"><div class="sheet-caption">开始介绍模式匹配</div>
+
+
+简介
+- 模式匹配由特定的数据组合模式组成
+- 需要检查是否符合，并根据模式解构(deconstruct)数据
+
+使用
+- 定义函数时可以为不同的模式定义单独的函数体
+- 从而编写简洁、可阅读的代码
+- 可以对任何数据类型模式匹配
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：匹配1到5的数字</div>
+
+
+- 可以使用if then else分支，但会产生错综复杂的树状分支
+- 使用条件匹配
+  ``` Haskell
+  sayMe :: (Integral a) => a -> String
+  sayMe 1 = "One!"
+  sayMe 2 = "Two!"
+  sayMe 3 = "Three!"
+  sayMe 4 = "Four!"
+  sayMe 5 = "Five!"
+  sayMe x = "Not between 1 and 5"
+  ```
+- 条件匹配是从顶部向底部依次匹配的，如果匹配到一个模式，对应的函数体将会被使用
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：阶乘的模式匹配方式实现</div>
+
+
+*略...*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">模式匹配的失败：非穷举模式</div>
+
+
+- 当存在非穷举模式(non-exhaustive pattern)时，模式匹配无法捕捉到一些输入
+- 当构造模式时，应当总是包含一个包罗万象的模式，从而防止意外输入导致的崩溃
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：2D向量相加(模式匹配与元组)</div>
+
+
+模式匹配可以用于元组
+
+构造一个函数，将两个二维空间向量相加
+- 非模式匹配方式
+  ``` Haskell
+  addVectors :: (Num a) => (a,a) -> (a,a) -> (a,a)
+  addVectors a b = (fst a + fst b, snd a + snd b)
+  ```
+- 模式匹配方式
+  ``` Haskell
+  addVectors :: (Num a) =>  (a,a) -> (a,a) -> (a,a)
+  addVectors (x1, y1) (x2, y2) = (x1 + x2, y1 + y2)
+  ```
+- 这是一个包罗万象的模式
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：实现三元组的提取</div>
+
+
+*略...*
+
+说明：和列表推导式一样，`_`代表不关心这一部分量是什么
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表推导式的模式匹配</div>
+
+
+``` Haskell
+ghci> let xs = [(1,3), (4,3), (2,4), (5,3), (5,6), (3,1)]
+ghci> [a+b | (a,b) <- xs]
+[4,7,6,8,11,4]
+```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">列表的模式匹配</div>
+
+
+- 可以匹配
+  - 空列表`[]`
+  - 任何涉及`:`和`[]`的模式
+- 模式`x:xs`
+  - 会将列表头绑定到`x`，以及剩下的部分绑定到`xs`
+  - 即使只有一个元素，`xs`的部分也会变成空列表
+  - 注意，这个模式用得很多，尤其是在递归函数中
+- 一次性绑定列表的前几个元素
+  - 例如，用数个变量绑定前三个元素，另一个变量绑定剩下的部分
+  - 使用`x:y:z:zs`
+  - 只会匹配到具有三个或更多元素的列表
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：手动实现head函数</div>
+
+
+例子：手动实现`head`函数( *代码略*)
+
+说明
+- 若要绑定数个变量，仍然需要将其包裹在圆括号中
+- 所使用的`error`函数获取一个字符串，产生一个运行时错误
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：列表元素的英语描述</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：length函数的模式匹配方式</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：sum函数的模式匹配实现</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">另一种模式匹配：@</div>
+
+
+- 将某个东西根据模式分解，但是仍然能够获取整个东西
+- 例如模式`xs@(x:y:ys)`，会按照`x:y:ys`的方式匹配，但是仍然通过`xs`获取整个列表，而不是重复`x:y:ys`
+
+*示例略...*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：不能使用++来匹配</div>
+
+
+不能使用`++`进行模式匹配
+- `(xs ++ ys)`将没有意义
+- `(xs ++ [x])`将违背列表的性质(nature)
+
+</div>
 <h2 id="BCEB1FBC">守卫(Guards, guards!)</h2>
 <h2 id="F7583AAB">Where!?</h2>
 <h2 id="C02EB15E">Let it be</h2>
