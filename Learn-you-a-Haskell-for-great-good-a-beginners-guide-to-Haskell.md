@@ -23,6 +23,12 @@
   - [Where!?](#F7583AAB)
   - [Let it be](#C02EB15E)
   - [Case表达式](#7A1F7EDA)
+- [递归](#C7B40BC9)
+  - [你好递归](#F0FD8021)
+  - [最棒(maximum awesome)](#C049B7D4)
+  - [再来几个递归函数](#042EAF63)
+  - [快，排序！](#3F53D80C)
+  - [递归地思考](#B36C606A)
 </div>
 
 <div class="main">
@@ -756,7 +762,254 @@ ghci> [a+b | (a,b) <- xs]
 
 </div>
 <h2 id="BCEB1FBC">守卫(Guards, guards!)</h2>
+<div class="sheet-wrap"><div class="sheet-caption">开始介绍卫语句</div>
+
+
+卫语句
+- 用来检测值的某些特性为真或假
+- 当你有数个条件时，卫语句非常更加可读，和模式配合很好
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：BMI判断器</div>
+
+
+根据BMI来痛斥你
+- 代码
+  ``` Haskell
+  bmiTell :: (RealFloat a) => a -> String
+  bmiTell bmi
+      | bmi <= 18.5 = "You're underweight, you emo, you!"
+      | bmi <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"
+      | bmi <= 30.0 = "You're fat! Lose some weight, fatty!"
+      | otherwise   = "You're a whale, congratulations!"
+  ```
+- 卫语句用竖线表示，在函数名以及参数后面
+- 通常在稍微右侧对齐，竖着排下来
+- 一条卫语句基本上是一个布尔表达式
+- 如果它的值为真，对应的函数体将会使用，如果为假，依次顺到下一条检查
+- 很多时候，最后一条卫语句是`otherwise`
+  - `otherwise`简单地定义为真，能够捕获所有东西
+- 卫语句类似模式
+  - 唯一不同的是模式匹配检查输入是否满足模式
+  - 而卫语句检查布尔条件
+- 卫语句和模式匹配合作
+  - 如果一个函数内所有的卫语句都为假，求值将会落入下一个模式中
+  - 如果没有合适的卫语句或者模式，将会抛出错误
+
+改进示例：用体重和身高计算BMI，然后分类处理( *代码略*)
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：等号的位置</div>
+
+
+注意：函数名和参数之后、第一个卫语句之前，没有等号。很多新手在这里遇到了语法错误
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：自己实现max</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">卫语句的行内(inline)写法</div>
+
+
+卫语句也可以写在行内(inline)
+- 
+  ``` Haskell
+  max' :: (Ord a) => a -> a -> a
+  max' a b | a > b = a | otherwise = b
+  ```
+- 但是会变得更加不可读
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：自己实现compare</div>
+
+
+``` Haskell
+myCompare :: (Ord a) => a -> a -> Ordering
+a `myCompare` b
+    | a > b     = GT
+    | a == b    = EQ
+    | otherwise = LT
+ghci> 3 `myCompare` 2
+GT
+```
+
+注意：我们不仅可以用反引号以中缀的方式调用函数，也可以以中缀的方式定义函数
+
+</div>
 <h2 id="F7583AAB">Where!?</h2>
+<div class="sheet-wrap"><div class="sheet-caption">示例：bmi讨论函数，用where减少重复</div>
+
+
+- 减少重复
+  ``` Haskell
+  bmiTell :: (RealFloat a) => a -> a -> String
+  bmiTell weight height
+      | bmi <= 18.5 = "You're underweight, you emo, you!"
+      | bmi <= 25.0 = "You're supposedly normal. Pffft, I bet you're ugly!"
+      | bmi <= 30.0 = "You're fat! Lose some weight, fatty!"
+      | otherwise   = "You're a whale, congratulations!"
+      where bmi = weight / height ^ 2
+  ```
+- 我们将关键词`where`放置在卫语句后面（通常要和竖线对齐），随即定义名称或函数
+- 这些名称在卫语句中间可见，减少重复
+- 进一步增加可读性
+  ``` Haskell
+  bmiTell :: (RealFloat a) => a -> a -> String
+  bmiTell weight height
+      | bmi <= skinny = "You're underweight, you emo, you!"
+      | bmi <= normal = "You're supposedly normal. Pffft, I bet you're ugly!"
+      | bmi <= fat    = "You're fat! Lose some weight, fatty!"
+      | otherwise     = "You're a whale, congratulations!"
+      where bmi = weight / height ^ 2
+            skinny = 18.5
+            normal = 25.0
+            fat = 30.0
+  ```
+- 定义的名称仅在函数内部可见，无需担心污染其它函数的命名空间
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：绑定在不同模式的函数体中不共享</div>
+
+
+- 绑定在不同模式的函数体中不共享
+- 如果你想一个函数的数个模式都能访问共享的命名，你必须全局定义它
+-
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">用where绑定来匹配模式</div>
+
+
+- 可以用`where`绑定来模式匹配
+- 重写前面函数的`where`部分
+  ``` Haskell
+  ...
+  where bmi = weight / height ^2
+        (skinny, normal, fat) = (18.5, 25.0, 30.0)
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：用where和模式匹配获取名和姓的首字母</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">在where中定义函数</div>
+
+
+*略...*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">where绑定也可以嵌套</div>
+
+</div>
 <h2 id="C02EB15E">Let it be</h2>
+<div class="sheet-wrap"><div class="sheet-caption">开始介绍Let绑定</div>
+
+
+- `let`绑定和`where`绑定很类似
+  - `where`：在整个函数末尾
+  - `let`：
+    - 在任何地方都可以绑定变量
+    - 它们自己也是表达式
+    - 非常局部，不能延伸到卫语句中
+- `let`绑定也可以用于模式匹配
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：圆柱体表面积</div>
+
+
+定义一个函数，根据圆柱体的高度和半径给出表面积
+- 
+  ``` Haskell
+  cylinder :: (RealFloat a) => a -> a -> a
+  cylinder r h = 
+      let sideArea = 2 * pi * r *h
+          topArea = pi * r ^ 2
+      in  sideArea + 2 * topArea
+  ```
+- 格式就是`let <bindings> in <expression>`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">let是表达式，而where不是</div>
+
+
+- `let`和`where`的不同是：`let`是表达式，`where`绑定只是语法结构
+  ``` Haskell
+  ghci> [let square x = x * x in (square 5, square 3, square 2)]
+  [(25,9,4)]
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">分号分隔绑定</div>
+
+
+- 如果我们想要在行内绑定数个变量，我们无法将其对齐，因此可以用分号分隔
+  ``` Haskell
+  ghci> (let a = 100; b = 200; c = 300 in a*b*c, let foo="Hey "; bar = "there!" in foo ++ bar)
+  (6000000,"Hey there!")
+  ```
+- 你不需要在最后一个绑定之后放置分号，但是如果你想的话，也可以
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">可以用let绑定来模式匹配</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">可以把let放进列表推导中</div>
+
+
+将let绑定放入列表推广式中
+- 重写之前的计算一列体重-身高对的示例，无需用`where`定义帮助函数
+  ``` Haskell
+  calcBmis :: (RealFloat a) => [(a,a)] -> [a]
+  calcBmis xs = [bmi | (w,h) <- xs, let bmi = w / h ^ 2]
+  ```
+- 包含了`let`，很类似于包含谓词，只是它并不过滤列表，它只绑定名称
+- ( **应该比较重要** )绑定的名称对于以下区域可见
+  - 输出函数(`|`之前的部分)
+  - 所有的谓词
+  - 在绑定之后的区域
+- 我们忽略了绑定中`in`的部分，因为名称的可见性在那里已经预定义了
+- 然而，也可以在谓词中使用`let`、`in`绑定，定义的名称只会在那个谓词中可见
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">let绑定中省略in(非列表推导式)</div>
+
+
+- `in`部分也可以在GHCi中定义函数和常量时省略
+- 如果这样做了，名称将会在整个交互中都可见
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">为什么有时候用where</div>
+
+
+为什么有时仍然使用`where`？
+- `let`表达式在范围内相对局限，不能跨越卫语句使用
+- 有些人更喜欢`where`绑定，因为功能之后紧接着就是用到的名称，函数体更接近函数名和类型声明，对于某些人来说更加可读
+
+</div>
 <h2 id="7A1F7EDA">Case表达式</h2>
+<div class="sheet-wrap"><div class="sheet-caption">Haskell中的case表达式</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：函数定义的参数中的模式匹配只是case表达式的语法糖</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">case的语法结构</div>
+
+
+``` Haskell
+case expression of pattern -> result
+                   pattern -> result
+                   pattern -> result
+```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">case表达式可以到处用得很多</div>
+
+</div>
+<h1 id="C7B40BC9">递归</h1>
+<h2 id="F0FD8021">你好递归</h2>
+<h2 id="C049B7D4">最棒(maximum awesome)</h2>
+<h2 id="042EAF63">再来几个递归函数</h2>
+<h2 id="3F53D80C">快，排序！</h2>
+<h2 id="B36C606A">递归地思考</h2>
 </div>
