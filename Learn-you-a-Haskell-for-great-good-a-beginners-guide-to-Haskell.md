@@ -29,6 +29,14 @@
   - [再来几个递归函数](#042EAF63)
   - [快，排序！](#3F53D80C)
   - [递归地思考](#B36C606A)
+- [高阶函数](#B09C0DB1)
+  - [柯里化函数](#0984FB78)
+  - [某些高阶主义/更高秩序主义(higher-orderism)是合理的](#F2BF0696)
+  - [Map和filter](#D9F15B6D)
+  - [Lambda](#D8846B0B)
+  - [只有fold和马](#C99A2B2A)
+  - [函数应用与$](#508D3D8D)
+  - [函数组合](#0F76AED0)
 </div>
 
 <div class="main">
@@ -1008,8 +1016,191 @@ case expression of pattern -> result
 </div>
 <h1 id="C7B40BC9">递归</h1>
 <h2 id="F0FD8021">你好递归</h2>
+<div class="sheet-wrap"><div class="sheet-caption">开始介绍递归</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：斐波那契数列</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">递归在Haskell中很重要</div>
+
+
+递归在Haskell中很重要
+- 和命令式语言不同，Haskell通过声明某物是什么，而非如何得到它来进行计算
+- 这就是为什么在Haskell中没有while循环或者for循环，相反，很多时候我们必须使用递归来声明某物是什么
+
+</div>
 <h2 id="C049B7D4">最棒(maximum awesome)</h2>
+<div class="sheet-wrap"><div class="sheet-caption">最大值函数在命令式语言中的做法</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">最大值的递归做法</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">更聪明的做法</div>
+
+</div>
 <h2 id="042EAF63">再来几个递归函数</h2>
+<div class="sheet-wrap"><div class="sheet-caption">replicate函数的实现</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：Num不是Ord的一个子类</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">take函数的实现</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">reverse函数的实现</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">repeat函数的实现</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">zip函数的实现</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">elem函数的实现</div>
+
+</div>
 <h2 id="3F53D80C">快，排序！</h2>
+<div class="sheet-wrap"><div class="sheet-caption">快排序在Haskell中更简单优雅</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Haskell构造快排序的思路</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">代码实现与测试</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">讲解</div>
+
+</div>
 <h2 id="B36C606A">递归地思考</h2>
+<div class="sheet-wrap"><div class="sheet-caption">边界情形和递归应用</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">单位元(identity)</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">结束语</div>
+
+</div>
+<h1 id="B09C0DB1">高阶函数</h1>
+<div class="sheet-wrap"><div class="sheet-caption">高阶函数——解决问题和思考程序的有力方式</div>
+
+
+- 高阶函数：获取函数作为参数，返回函数作为返回值；做到其中一点就是高阶函数\
+  *和其它途径中了解的高阶函数不太一样(没有后者)*
+- 很大程度上就是Haskell的实践
+- 如果你想要通过定义东西是什么来定义计算，而不是定义步骤改变状态，高阶函数是不可或缺的
+- 高阶函数是解决问题和思考程序的有力方式
+
+</div>
+<h2 id="0984FB78">柯里化函数</h2>
+<div class="sheet-wrap"><div class="sheet-caption">目前为只所有获取多于一个参数的函数都是柯里化函数(后文略...)</div>
+
+</div>
+<h2 id="F2BF0696">某些高阶主义/更高秩序主义(higher-orderism)是合理的</h2>
+<h2 id="D9F15B6D">Map和filter</h2>
+<h2 id="D8846B0B">Lambda</h2>
+<h2 id="C99A2B2A">只有fold和马</h2>
+<div class="sheet-wrap"><div class="sheet-caption">fold函数的参数结构</div>
+
+
+1. 一个双参函数(binary function)
+   - 获取积累器(accumulator)和第一个（或者最后一个）元素
+   - 产生一个新的积累器
+2. 一个开始值(应该叫`accumulator` ( *ps:我也觉得* ))
+3. 一个用来折叠的列表
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">数个fold函数：处理list的通用方式</div>
+
+
+- 回忆处理递归的时候，注意到许多递归函数操作列表
+- 通常我们对于空列表有边界情形，我们引入了`x:xs`模式，我们进行一些行为，涉及到单个元素以及剩下的列表
+- 这看起来是个有用的模式，所以有数个非常有用的函数来封装它
+- 这些函数被称作`fold`，它们优点像`map`函数，只是它们把列表降为一些单个值
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">看看foldl，也称为左折叠</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：sum函数的实现</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">foldr，右折叠</div>
+
+
+- 右折叠和左折叠工作方式相似，只是积累器从右侧吃掉值
+- 左折叠双参函数：积累器是第一个参数，当前值在右侧(`\acc x ->...`)
+- 右折叠双参函数：当前值是第一个参数，积累器是第二个(`\x acc ->...`)
+- 这很合理，因为右折叠从右侧开始折叠，所以积累器放在右边
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">积累器可以是任何类型</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">一个大的差异：无穷列表</div>
+
+
+一个大的差异
+- 右折叠可用于无穷列表，然而左折叠不能
+- 如果你从无穷列表的某个点开始从右侧折叠，你会最终到达列表的开始
+- 如果你从无穷列表的某个点开始从左侧折叠，你将永远不会到达尽头
+
+*我觉得这是错的！两个函数都不能处理无穷列表，作者在胡扯*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">折叠可以用来实现任何一次遍历列表的函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">foldl1和foldr1：不需要显式初始值</div>
+
+
+- `foldl1`和`foldr1`类似于`foldl`和`foldr`
+- 只是不需要显式提供初始值
+- 它们假定列表第一个（最后一个）元素是初始值
+- 它们折叠的列表必须含有至少一个元素，如果给空列表，将会产生运行时错误
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">scanl和scanr很类似于foldl和foldr</div>
+
+
+- `scanl`和`scanr`类似于`foldl`和`foldr`，值是它们以列表的形式报告所有中间积累器状态
+- 还有`scanl1`和`scanr1`，类似于`foldl1`和`foldr1`
+- 
+  ``` Haskell
+  ghci> scanl (+) 0 [3,5,2,1]
+  [0,3,8,10,11]
+  ghci> scanl (+) 0 [3,5,2,1]
+  [11,8,3,1,0]
+  ghci> scanl1 (\acc x -> if x > acc then x else acc) [3,4,5,3,7,9,2,1]
+  [3,4,5,5,7,9,9,9]
+  ghci> scanl (flip (:)) [] [3,2,1]
+  [[],[3],[2,3],[1,2,3]]
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：多少个自然数的平方根之和能超过1000</div>
+
+
+``` Haskell
+sqrtSums :: Int
+sqrtSums = length (takeWhile (<1000) (scan1 (+ (map sqrt[1..])))) + 1
+ghci> sqrtSums
+121
+ghci> sum (map sqrt [1...131])
+1005.0942035344083
+ghci> sum (map sqrt [1...130])
+993.6486803921487
+```
+
+说明
+- 使用`takeWhile`，而不是`filter`，因为`filter`不能用于无穷列表
+- 使用`takeWhile`，在求和开始大于1000时就截断扫描列表
+
+</div>
+<h2 id="508D3D8D">函数应用与$</h2>
+<h2 id="0F76AED0">函数组合</h2>
 </div>
