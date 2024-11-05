@@ -1202,5 +1202,89 @@ ghci> sum (map sqrt [1...130])
 
 </div>
 <h2 id="508D3D8D">函数应用与$</h2>
+<div class="sheet-wrap"><div class="sheet-caption">$的定义</div>
+
+
+`$`的定义
+
+``` Haskell
+($) :: (a -> b) -> a -> b
+f $ x = f x
+```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">$的用处？</div>
+
+
+- 尽管普通函数应用（空格）具有很高的优先级
+- `$`函数具有最低的优先级
+- 空格函数应用是左结合性的(left-associative)
+- `$`函数应用是右结合性的
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">为什么$能帮助我们</div>
+
+
+- 这是一个方便的函数，我们无需再写这么多括号了
+- 考虑表达式`sum (map sqrt [1..130])`
+  - 因为`$`的优先级如此低，我们可以把表达式重写为`sum $ map sqrt [1..130]`
+  - 当遇到`$`，右侧的表达式作为参数被应用于它左侧的函数
+- 当我们想写`sqrt (3 + 4 + 9)`
+  - 我们可以写成`sqrt $ 3 + 4 + 9`
+  - `$`可以看作在此位置写一个`(`，然后在最右侧写一个`)`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">函数应用也可以被应用</div>
+
+
+- `$`代表函数应用可以被视为另一个函数
+- 我们可以把函数应用`map`到一列函数上
+  ``` Haskell
+  ghci> map ($ 3) [(4+), (10*), (^2), sqrt]
+  [7.0,30.0,9.0,1.7320508075688772]
+  ```
+  *为什么这里的`$`可以把`3`放在旁边*
+  
+  *可能因为`$`是右结合性的，实际上获取到的第一个参数对应右边*
+
+</div>
 <h2 id="0F76AED0">函数组合</h2>
+<div class="sheet-wrap"><div class="sheet-caption">通过.函数进行函数组合</div>
+
+
+通过`.`函数进行函数组合
+``` Haskell
+(.) :: (b -> c) -> (a -> b) -> a -> c
+f . g = \x -> f (g x)
+```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">.函数的作用</div>
+
+
+- 函数组合的其中一个作用是使函数像飞一般传递到另一些函数
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：将列表中的数字转为负数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">右结合性</div>
+
+
+- `.`是右结合性的
+- 所以意味着可以将许多函数一次性组合在以其
+- `f(g(z x))`等价于`(f . g . z) x`
+- 可以将
+  ``` Haskell
+  ghci> map (\xs -> negate (sum (tail xs))) [[1..5],[3..6],[1..7]]
+  [-14,-15,-27]
+  ```
+  转换为
+  ``` Haskell
+  ghci> map (negate . sum . tail) [[1..5],[3..6],[1..7]]
+  [-14,-15,-27]
+  ```
+
+
+</div>
 </div>
