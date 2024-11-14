@@ -43,7 +43,18 @@
   - [Data.Char](#98AC801F)
   - [Data.Map](#962E96E6)
   - [Data.Set](#CB10689F)
-  - [构造你自己的模块](#EB01D03E)
+  - [制造我们自己的模块](#EB01D03E)
+- [我们自己的类型以及类型类](#ADC1965B)
+  - [代数数据类型介绍](#B4BF6FA7)
+  - [记录语法](#4D4A2DBE)
+  - [类型参数](#2BD2E412)
+  - [派生实例](#2C826D8B)
+  - [类型同义词](#A7CD6634)
+  - [递归数据结构](#6468FD6E)
+  - [类型类102](#7989C8EE)
+  - [一种是-否类型类](#BE3DEDFC)
+  - [函数类型类](#C1FB41C2)
+  - [Kinds和一些type-foo](#6613BA46)
 </div>
 
 <div class="main">
@@ -1450,8 +1461,265 @@ f . g = \x -> f (g x)
 
 </div>
 <h2 id="919CB162">Data.List</h2>
+<div class="sheet-wrap"><div class="sheet-caption">intersperse函数</div>
+
+
+- 获取一个元素和一个列表，然后将该元素放到列表中每一对元素中间
+- 示例
+  ``` Haskell
+  ghci> intersperse '.' "MONKEY"
+  ghci> intersperse 0 [1,2,3,4,5,6]
+  [1,0,2,0,3,0,4,0,5,0,6]
+  ```
+- 
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">intercalate函数</div>
+
+
+- 获取一列列表和一个列表，将该列表茶道所有列表之间然后扁平化结果
+- 示例
+  ``` Haskell
+  ghci> intercalate " " ["hey","there","guys"]
+  "hey there guys"
+  ghci> intercalate [0,0,0] [[1,2,3],[4,5,6],[7,8,9]]
+  [1,2,3,0,0,0,4,5,6,0,0,0,7,8,9]
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">transpose函数</div>
+
+
+- 转置（transpose）一列列表
+- 如果你将一列列表看作2D矩阵，列变成行，反之亦然
+- 示例
+  ``` Haskell
+  ghci> transpose [[1,2,3],[4,5,6],[7,8,9]]
+  [[1,4,7],[2,5,8],[3,6,9]]
+  ghci> transpose ["hey","there","guys"]
+  ["htg","ehu","yey","rs","e"]
+  ```
+  *感觉有些费解，不过可以理解为逐次从每个列表头部取元素并组合成对应位置的新的列表*
+- 应用：多项式相加
+  - 有多项式$3x^2+5x+9$, $10x^3+9$, $8x^3+5x^2+x-1$
+  - 希望将其相加
+  - 使用列表`[0,3,5,9]`,`[10,0,0,9]`,`[8,5,1,-1]`
+  - 代码
+    ``` Haskell
+    ghci> map sum $ transpose [[0,3,5,9],[10,0,0,9],[8,5,1,-1]]
+    [18,8,6,17]
+    ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">fold'和fold1'函数</div>
+
+
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">concat函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">concatMap函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">and, or函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">any, all函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">iterate函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">splitAt函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">takeWhile, dropWhile函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">span函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">sort, group函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">inits, tails函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">isInfixOf, isPrefixOf, isSuffixOf函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">elem, notElem函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">partition函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">find函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">elemIndex, elemIndices函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">findIndex函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">zip3,zip4,...,zipWith3, zipWith4,...函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">lines, unlines函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">words, unwords函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">nub函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">delete函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">\,union,intersect函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">insert函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">为什么存在genericLength,genericTake,enericDrop,genericSplitAt,genericIndx,genericReplicate</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">更加通用的nubBy,deleteBy,unionBy,intersectBy,groupBy</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">更加通用的sortBy,insertBy,maximumBy,minimumBy</div>
+
+</div>
 <h2 id="98AC801F">Data.Char</h2>
 <h2 id="962E96E6">Data.Map</h2>
 <h2 id="CB10689F">Data.Set</h2>
-<h2 id="EB01D03E">构造你自己的模块</h2>
+<h2 id="EB01D03E">制造我们自己的模块</h2>
+<div class="sheet-wrap"><div class="sheet-caption">示例介绍：计算几何对象的体积和面积</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">命名模块、指定导出函数</div>
+
+
+1. 如果文件名"Geometry.hs"，那么模块名应该为"Geometry"
+2. 指定导出的函数名
+3. 代码
+   ``` Haskell
+   module Geometry
+   ( sphereVolume
+   , sphereArea
+   , cubeVolume
+   , cubeArea
+   , cuboidArea
+   , cuboidVolume) where
+   ```
+4. 定义函数
+   ``` Haskell
+   sphereVolume :: Float -> Float
+   sphereVolume radius = (4.0 / 3.0) * pi * (radius ^ 3)
+
+   sphereArea :: Float -> Float
+   sphereArea radius = 4 * pi * (radius ^ 2)
+
+   cubeVolume :: Float -> Float
+   cubeVolume side = cuboidVolume side side side
+
+   cubeArea :: Float -> Float
+   cubeArea side = cuboidArea side side side
+
+   cuboidVolume :: Float -> Float -> Float -> Float
+   cuboidVolume a b c = rectangleArea a b * c
+   
+   cuboidArea :: Float -> Float -> Float -> Float
+   cuboidArea a b c = rectangleArea a b * 2 + rectangleArea a c * 2 + rectangleArea c b * 2
+
+   rectangleArea :: Float -> Float -> Float
+   rectangleArea a b = a * b
+   ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：只导出作为接口的函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">使用模块</div>
+
+
+- 使用我们的模块，只需
+  ``` Haskell
+  import Geometry
+  ```
+- "Geometry.hs"必须和导出它的程序在同一个文件夹下
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">模块可以有层级化结构</div>
+
+
+- 每个模块可以拥有数个子模块，它们也可以拥有它们自己的子模块
+- 我们分组这些函数，因此"Geometry"拥有子模块的模块，每一种都是一类对象
+- 首先，创建一个名称为"Geometry"的文件夹，注意首字母大写
+- 在文件夹中放置三个文件"Sphere.hs"、"Cubiod.hs"、"Cube.hs"
+  - "Sphere.hs"
+    ``` Haskell
+    module Geometry.Sphere
+    ( volume
+    , area
+    ) where
+
+    volume :: Float -> Float
+    volume radius = (4.0 / 3.0) * pi * (radius ^ 3)
+    ```
+  - "Cuboid.hs"
+    ``` Haskell
+    module Geometry.Cuboid
+    ( volume
+    , area
+    ) where
+
+    volume :: Float -> Float -> Float -> Float
+    volume a b c = ractangleAera a b * c
+
+    area :: Float -> Float -> Float -> Float
+    area a b c = rectangleArea a b * 2 + rectangleArea a c * 2 + rectangleArea c b * 2
+
+    rectangleArea :: Float -> Float -> Float
+    rectangleArea a b = a * b
+    ```
+  - "Cube.hs"
+    ``` Haskell
+    module Geometry.Cube
+    ( volume
+    , area
+    ) where
+
+    import qulified Geometry.Cuboid as Cubeoid
+
+    volume :: Float -> Float
+    volume side = Cuboid.volume side side side
+
+    area :: Float -> Float
+    area side = Cuboid.area side side side
+    ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：不同模块中相同的函数名</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">导入模块</div>
+
+</div>
+<h1 id="ADC1965B">我们自己的类型以及类型类</h1>
+<h2 id="B4BF6FA7">代数数据类型介绍</h2>
+<h2 id="4D4A2DBE">记录语法</h2>
+<h2 id="2BD2E412">类型参数</h2>
+<h2 id="2C826D8B">派生实例</h2>
+<h2 id="A7CD6634">类型同义词</h2>
+<h2 id="6468FD6E">递归数据结构</h2>
+<h2 id="7989C8EE">类型类102</h2>
+<h2 id="BE3DEDFC">一种是-否类型类</h2>
+<h2 id="C1FB41C2">函数类型类</h2>
+<h2 id="6613BA46">Kinds和一些type-foo</h2>
 </div>
