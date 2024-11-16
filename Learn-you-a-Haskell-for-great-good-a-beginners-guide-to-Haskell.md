@@ -1713,6 +1713,131 @@ f . g = \x -> f (g x)
 </div>
 <h1 id="ADC1965B">我们自己的类型以及类型类</h1>
 <h2 id="B4BF6FA7">代数数据类型介绍</h2>
+<div class="sheet-wrap"><div class="sheet-caption">使用data关键字定义一种类型</div>
+
+
+使用`data`关键字定义一种类型
+- 布尔类型在标准库的定义
+  ``` Haskell
+  data Bool = False | True
+  ```
+- `data`表示定义一种新的数据类型
+- `=`前面的部分记为类型，它是`Bool`
+- `=`后面的部分是值构造器，他们指定该类型可以拥有的不同值
+- `|`读作“或”
+- 所以读作：`Bool`类型可以拥有`True`或者`False`值
+
+类似的方式定义`Int`类型
+- 代码
+  ``` Haskell
+  data Int = -2147483648 | - 2147483647 | ... | -1 | 0 | 1 | 2 | ... | 2147483647
+  ```
+- 第一个和最后一个值构造器是`Int`可能值的最大最小值
+- 实际上并不是这样定义的，只是为了说明才这样写
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">表示形状：值构造器字段</div>
+
+
+- 圆可以定义为`(43.1, 55.0, 10,4)`，第一个和第二个字段代表圆心坐标，第三个字段代表半径
+- 但是为了区分数据的含义，更好的解决方案是创建自己的类型，用来表示形状
+- 形状可以是圆形、长方形
+  ``` Haskell
+  data Shape = Circle Float Float Float | Rectangle Float Float Float Float
+  ```
+  - 当我们编写一个值构造器，我们可选择添加一些类型，这些类型定义它将会包含的值
+  - `Circle`值构造器有三个字段，前两个字段代表圆心坐标，第三个代表半径
+  - `Rectangle`值构造器有四个字段，前两个是左上角坐标，后两个是右下角坐标
+- 字段实际上是参数，值构造器实际上是函数，最终返回一种数据类型的值
+- 观察两种值构造器的类型签名
+  ``` Haskell
+  ghci> :t Circle
+  Circle :: Float -> Float -> Float -> Shape
+  ghci> :t Rectangle
+  Rectangle :: Float -> Float -> Float -> Float -> Shape
+  ```
+- 所以值构造器也是函数，和其它任何东西一样
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：获取形状返回面积</div>
+
+
+创造一个函数，获取形状并返回它的面积
+- 代码
+  ``` Haskell
+  surface :: Shape -> Float
+  surface (Circle _ _ r) = pi * r ^ 2
+  surface (Rectangle x1 y1 x2 y2) = (abs $ x2 - x1) * (abs $ y2 - y1)
+  ```
+- 第一个值得注意的事情是类型声明
+  - 不能编写`Circle->Float`，因为`Circle`不是一个类型，`Shape`才是
+  - 正如不能够编写一个函数类型声明`True->Int`
+- 下一个值得注意的事情是可以针对构造器模式匹配
+  - 我们先模式匹配构造器，然后才匹配不含有任何字段的值
+  - 我们写构造器然后将它的字段绑定到名称上
+- 代码
+  ``` Haskell
+  ghci> surface $ Circle 10 20 10
+  314.15927
+  ghci> surface $ Rectangle 0 0 100 100
+  10000.0
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">打印类型的值</div>
+
+
+- 如果直接尝试打印`Circle 10 20 5`，将会报错
+- 尝试打印值的时候，Haskell首先运行`show`函数来获取我们值的字符串表示，然后打印到终端
+- 为了让`Shape`类型是`Show`类型类的一部分，修改为
+  ``` Haskell
+  data Shape = Circle Float Float Float | Rectangle Float Float Float Float deriving (Show)
+  ```
+- 关于`deriving`目前不考虑太多，应该说如果添加`deriving (Show)`到`data`声明的末尾，Haskell自动让该类型作为Show类型类的一部分
+- 因此可以
+  ``` Haskell
+  ghci> Circle 10 20 5
+  Circle 10.0 20.0 5.0
+  ghci> Rectangle 50 230 60 90
+  Rectangle 50.0 230.0 60.0 90.0
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">值构造器作为函数可以map、部分应用等</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">改良：增加Point数据类型</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：平移（nudge）形状的函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">导出模块内的数据类型</div>
+
+
+- 如果我们想要导出定义在模块中的函数和类型
+  ``` Haskell
+  module Shapes
+  ( Point(..)
+  , Shape(..)
+  , surface
+  , nudge
+  , baseCircle
+  , baseRect
+  ) where
+  ```
+- 通过`Shape(..)`，我们导出Shape的所有值构造器，表示任何导入我们模块的人都可以通过`Rectangle`和`Circle`值构造器创建形状
+- 也可以不导出`Shape`的任何值构造器，这样的话，导入我们模块的人只能通过使用帮助函数`baseCircle`和`baseRectangle`来创建形状
+- `Data.Map`模块也使用了这种方式，你不能通过`Map.Map[(1,2),(3,4)]`来创建一个映射，因为它没有导出那个值构造器
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：隐藏实现与抽象</div>
+
+
+- 不导出数据类型的值构造器会让数据类型更加抽象，我们可以借此隐藏实现
+- 另外，使用我们模块的任何人不能根据值构造器模式匹配
+
+</div>
 <h2 id="4D4A2DBE">记录语法</h2>
 <h2 id="2BD2E412">类型参数</h2>
 <h2 id="2C826D8B">派生实例</h2>
