@@ -1839,6 +1839,51 @@ f . g = \x -> f (g x)
 
 </div>
 <h2 id="4D4A2DBE">记录语法</h2>
+<div class="sheet-wrap"><div class="sheet-caption">示例：存储个人信息</div>
+
+
+- 存储个人的信息：名，姓，年龄，身高，手机号，最爱的冰淇淋口味
+- 代码（代数结构）`data Person = Person String String Int Float String String deriving (Show)`
+  ``` Haskell
+  ghci> let guy = Person "Buddy" "Finklestein" 43 184.2 "526-2928" "Chocolate"
+  ghci> guy
+  Person "Buddy" "Finklestein" 43 184.2 "526-2928" "Chocolate"
+  ```
+- 有点难以阅读，比如说我们想要创造一个函数，从一个人获得单独的信息；将会定义非常多的函数
+- 更好的办法是通过"记录"语法来实现
+  ``` Haskell
+  data Person = Person { firstName :: String
+                       , lastName :: String
+                       , age :: Int
+                       , height :: Float
+                       , flavor :: String
+                       } deriving (Show)
+  ```
+- 因此可以使用弯括号，而不是一个个定义字段类型并且用空格分开
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：使用记录的好处</div>
+
+
+- 主要的好处是它会自动创造函数来查询数据类型字段
+  ``` Haskell
+  ghci> :t flavor
+  flavor :: Person -> String
+  ghci> :t firstName
+  firstName :: Person -> String
+  ```
+- 使用记录语法还有另一个好处，当给类型派生"Show"时，会用不同的方式展示
+  ``` Haskell
+  data Car = Car {company :: String, model :: String, year :: Int} deriving (Show)
+  ghci> Car {company="Ford", model="Mustang", year=1967}
+  Car {company = "Ford", model = "Mustang", year = 1967}
+  ```
+  不需要专门用合适的位置放置字段
+  - 使用记录语法的情形：构造器具有数个字段，并且不明显哪个字段是哪个的时候
+  - 如果我们创造3D向量数据类型`Vector = Vector Int Int Int`，已经很清晰字段是向量的三个分量
+  - 然而，如果是"Person"或者"Car"类型，使用"记录"语法有很有好处
+
+</div>
 <h2 id="2BD2E412">类型参数</h2>
 <h2 id="2C826D8B">派生实例</h2>
 <h2 id="A7CD6634">类型同义词</h2>
