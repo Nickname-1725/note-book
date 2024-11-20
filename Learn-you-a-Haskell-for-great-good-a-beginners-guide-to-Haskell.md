@@ -1885,6 +1885,95 @@ f . g = \x -> f (g x)
 
 </div>
 <h2 id="2BD2E412">类型参数</h2>
+<div class="sheet-wrap"><div class="sheet-caption">值构造器与类型构造器</div>
+
+
+- 类比值构造器能够获取数值参数并且产生新的值
+- 类型构造器可以获取类型作为参数并且产生新的类型
+- 如果你熟悉C++的模板，你会看到类比
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Maybe类型构造器</div>
+
+
+用一个我们已经见过的类型如何实现来举例
+- `data Maybe a = Notion | Just a`
+- 这里有类型参数，因为涉及到类型参数，我们称`Maybe`为类型构造器
+- 取决于我们想要这个数据类型当不是"Nothing"时捕获什么，这个类型构造器可以产生一个类型`Maybe Int`, `Maybe Car`, `Maybe String`等等
+- 如果传入"Char"作为Maybe的类型参数，我们获得类型`Maybe Car`
+- 例如，值`Just 'a'`具有类型`Maybe Char`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">另一个具有类型参数的类型：列表</div>
+
+
+- 另一个具有参数的数据类型，列表：
+- 你可能不知道，在使用Maybe之前，我们使用了具有类型参数的数据类型，即列表
+- 列表的值可以有`[Int]`类型、`[Char]`类型、`[[String]]`类型，但是不能只有`[]`类型的值
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Maybe的玩耍</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：Nothing的类型是Maybe a，多态类型</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Car不适合使用类型参数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Data.Map模块中的Map k v</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：一般不往数据声明中加类型类约束</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：3D向量类型以及操作符</div>
+
+
+实现一个3D向量类型并且添加一些操作符
+1. 代码
+   ``` Haskell
+   data Vector a = Vector a a a deriving (Show)
+
+   vplus :: (Num t) => Vector t -> Vector t -> Vector t
+   (Vector i j k) `vplus` (Vector l m n) = Vector (i+l) (j+m) (k+n)
+
+   vectMult :: (Num t) => Vector t -> t -> Vector
+   (Vector i j k) `vectMult` m = Vector (i*m) (j*m) (k*m)
+
+   scalarMult :: (Num t) => Vector t -> Vector t -> t
+   (Vector i j k) `scalarMult` (Vector l m n) = i*l + j*m + k*n
+   ```
+   - `vplus`向量相加
+   - `vectMult`向量数乘
+   - `scalarMult`向量数量积
+2. 这样就能够支持不同的数值类型，同时只有相同类型的向量才能参与运算
+3. 注意并没有放`Num`类型约束，因为反正都会在函数里面重复它
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">区分类型构造器和值构造器</div>
+
+
+- 声明数据类型时，"="左侧的部分是类型构造器，后面的部分（有可能由"|"分隔）是值构造器
+- 函数声明`Vector t t t -> Vector t t t -> t`可能是错的，因为
+  - 应该把类型放到类型声明中
+  - vector类型构造器只获取一个参数
+  - 而值构造器获取三个
+- 玩一玩vector
+  ``` Haskell
+  ghci> Vector 3 5 8 `vplus` Vector 9 2 8
+  Vector 12 7 16
+  ghci> Vector 3 5 8 `vplus` Vector 9 2 8 `vplus` Vector 0 2 3
+  Vector 12 9 19
+  ghci> Vector 3 9 7 `vectMult` 10
+  Vector 30 90 70
+  ghci> Vector 4 9 5 `scalarMult` Vector 9.0 2.0 4.0
+  74.0
+  ghci> Vector 2 9 3 `vectMult` (Vector 4 9 5 `scalarMult` Vector 9 2 4)
+  Vector 148 666 222
+  ```
+
+</div>
 <h2 id="2C826D8B">派生实例</h2>
 <h2 id="A7CD6634">类型同义词</h2>
 <h2 id="6468FD6E">递归数据结构</h2>
