@@ -1975,7 +1975,194 @@ f . g = \x -> f (g x)
 
 </div>
 <h2 id="2C826D8B">派生实例</h2>
+<div class="sheet-wrap"><div class="sheet-caption">类型类与接口函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">类型类更像是接口</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Person类派生行为</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：令Bool类型派生自Ord</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：使用代数数据类型构造枚举量</div>
+
+</div>
 <h2 id="A7CD6634">类型同义词</h2>
+<div class="sheet-wrap"><div class="sheet-caption">类型同义词：取别名</div>
+
+
+- `String`和`[Char]`类型是等同且可互换的
+- 这是用类型同义词实现的
+- 代码
+  ``` Haskell
+  type String = [Char]
+  ```
+- 有点误导的地方在于，我们没有制造任何新的类型（需要用`data`关键字），而是在给已有类型创造同义词
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Data.Map模块表示号码本</div>
+
+
+- 使用`Data.Map`模块，首先用关系表表达电话本，然后转换为映射
+  ``` Haskell
+  phoneBook :: [(String, String)]
+  phoneBook = 
+      [("betty","555-2938")
+      ,("bonnie","452-2928")
+      ,("patsy","493-2928")
+      ,("lucille","205-2928")
+      ,("wendy","939-8282")
+      ,("penny","853-2492")]
+  ```
+- 创造类型同义词来传达更多信息
+  ``` Haskell
+  type PhoneBook = [(String, String)]
+  ```
+  现在我们电话本的类型声明可以写成`phoneBook :: PhoneBook`
+- 现在给"String"也造个类型同义词
+  ``` Haskell
+  type PhoneNumber = String
+  type Name = String
+  type PhoneBook = [(Name,PhoneNumber)]
+  ```
+- 现在，当我们实现函数获取名称和号码，查看名称和号码组合是否在电话本中，我们可以给出漂亮且描述性的类型声明
+  ``` Haskell
+  inPhoneBook :: Name -> PhoneNumber -> PhoneBook -> Bool
+  inPhoneBook name pnumber pbook = (name,pname) `elem` pbook
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：引入类型同义词的原因</div>
+
+
+- 引入类型同义词的原因
+  1. 为了已有的类型更好的描述
+  2. 长类型多次重复，但是在函数的上下文中具有更特别的含义
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">类型同义词也可以参数化</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：具体类型、未充分应用类型、类型构造器</div>
+
+
+1. 具体类型（充分应用类型）：例如`Map Int String`
+2. 未充分应用类型：例如处理多态函数，`[a]`或者`(Ord a) => Maybe a`，等等
+3. 类型构造器：`Maybe`实际上是类型构造器，如果将额外一个类型应用到`Maybe`，例如`Maybe Int`，就能得到一个具体类型
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">部分应用类型参数：获得新的类型构造器</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">注意：从Data.Map库中部分导入</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：区分类型构造器和值构造器</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Either a b类型的介绍</div>
+
+
+另一种酷的数据类型是`Either a b`类型
+- 大概定义为
+  ``` Haskell
+  data Either a b = Left a | Right b deriving (Eq, Ord, Read, Show)
+  ```
+- 具有两个值构造器，如果使用`Left`，内容就是`a`类型，如果右边被使用，内容就是`b`类型
+- 我们可以用这个类型来封装一个或另一个类型的值，然后当我们获取`Either a b`类型的值时，我们通常对`Left`和`Right`都模式匹配，我们根据其中一种讨论
+- 代码示例
+  ``` Haskell
+  ghci> Right 20
+  Right 20
+  ghci> Left "w00t"
+  Left "w00t"
+  ghci> :t Right 'a'
+  Right 'a' :: Either a Char
+  ghci> :t Left True
+  Left True :: Either Bool b
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Maybe和Either的使用区别</div>
+
+
+- 目前为止，我们看到`Maybe`最常用来表示可能失败或成功的计算结果
+- 但是有时候，`Maybe`不够好，因为`Nothing`并没有真正表达很多信息，只有某事情失败了
+- 使用`Maybe`的情形
+  - 函数只能有一种方式失败
+  - 我们不关心某些函数如何或者为何失败
+- 如果我们关心某些函数如何、为何失败，我们通常使用`Either a b`的结果类型
+  - `a`是某种告诉我们关于可能的失败相关信息的类型
+  - `b`是成功计算的类型
+  - 错误使用`Left`值构造器，结果使用`Right`值构造器
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：高中储物柜</div>
+
+
+- 介绍
+  - 高中提供储物柜给学生使用
+  - 当学生想要新的储物柜，他们会告诉管理员他们想要哪个储物柜号码，管理员告诉他们密码
+  - 如果储物柜已经被占用，管理员不能告诉密码，他们需要挑选另一个
+- 实现途径：来自`Data.Map`的`map`来代表储物柜，用来将储物柜号码映射到储物柜是否使用以及储物柜密码的一个对（pair）
+- 代码
+  ``` Haskell
+  import qualified Data.Map as Map
+  data LockerState = Taken | Free deriving (Show, Eq)
+  type Code = String
+  type LockerMap = Map.Map Int (LockerState, Code)
+  ```
+- 接下来创造一个函数在储物柜映射中查询密码，我们将会使用`Either String Code`类型来代表我们的结果，因为查询结果会以两种方式失败
+  1. 储物柜已被占用
+  2. 储物柜并不存在
+  如果查询失败，我们将会用`String`来说明发生了什么
+- 代码
+  ``` Haskell
+  lockerLookup :: Int -> LockerMap -> Either String Code
+  lockerLookup lockerNumber map =
+      case Map.lookup lockerNumber map of
+          Nothing -> Left $ "Locker number " ++ show lockerNumber ++ " doesn't exist!"
+          Just (state, code) -> if state /= Taken
+                                  then Right code
+                                  else Left $ "Locker " ++ show lockerNumber ++ " is already taken!"
+  ```
+- 解释：
+  - 我们在映射中进行了正常的查询
+  - 如果获得`Nothing`，返回`Left String`类型之，声称储物柜不存在
+  - 如果我们确实找到，我们进行一个额外的检查，看储物柜是否占用
+    - 是：返回`Left`声称已经占用
+    - 否：返回`Right Code`类型值，其中我们给学生储物柜正确的密码
+- 示例映射
+  ``` Haskell
+  lockers :: LockerMap
+  lockers = Map.fromList
+      [(100,(Taken,"ZD39I"))
+      ,(101,(Free,"JAH3I"))
+      ,(103,(Free,"IQSA9"))
+      ,(105,(Free,"QOTSA"))
+      ,(109,(Taken,"893JJ"))
+      ,(110,(Taken,"99292"))
+      ]
+  ```
+- 现在我们查询一些储物柜密码
+  ``` Haskell
+  ghci> lockerLookup 101 lockers
+  Right "JAH3I"
+  ghci> lockerLookup 100 lockers
+  Left "Locker 100 is already taken!"
+  ghci> lockerLookup 102 lockers
+  Left "Locker number 102 doesn't exist!"
+  ghci> lockerLookup 110 lockers
+  Left "Locker 110 is already taken!"
+  ghci> lockerLookup 105 lockers
+  Right "QOTSA"
+  ```
+- 如果我们用`Maybe`来表达结果，我们将会不知道为什么我们不能得到密码，但是现在，我们有关于失败的信息
+
+</div>
 <h2 id="6468FD6E">递归数据结构</h2>
 <h2 id="7989C8EE">类型类102</h2>
 <h2 id="BE3DEDFC">一种是-否类型类</h2>
