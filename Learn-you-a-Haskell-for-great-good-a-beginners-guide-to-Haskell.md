@@ -53,7 +53,7 @@
   - [递归数据结构](#6468FD6E)
   - [类型类102](#7989C8EE)
   - [一种是-否类型类](#BE3DEDFC)
-  - [函数类型类](#C1FB41C2)
+  - [函子(Functor)类型类](#C1FB41C2)
   - [Kinds和一些type-foo](#6613BA46)
 </div>
 
@@ -2164,8 +2164,443 @@ f . g = \x -> f (g x)
 
 </div>
 <h2 id="6468FD6E">递归数据结构</h2>
+<div class="sheet-wrap"><div class="sheet-caption">递归数据类型的概念</div>
+
+
+- 我们看到代数数据类型的一个构造器可能具有多个（或者没有）字段，每个字段必须有一些具体类型
+- 我们可以创造一些类型，其构造器具有的字段是相同类型！
+- 这样，我们可以创造递归数据类型，其中某些类型的一个值包含该类型的数个值，后者又包含同样类型的更多值，一直下去
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：列表是一种递归数据结构</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：使用代数数据类型实现自己的列表</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：模式匹配实际上是在匹配构造器</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：实现一个二叉搜索树</div>
+
+
+什么是二叉搜索树
+1. 一个元素指向两个元素，一个在左一个在右
+2. 左边的元素更小，右边的元素更大
+3. 每个元素也可以指向两个元素（或者一个，或者没有）
+4. 结果上，每个元素具有最多两个子树
+5. 我们知道的一件酷的事情是所有左边子树的元素小于根节点的元素，右子树的元素会更大
+6. 如果我们需要寻找8是否在树中，我们会从根节点（比如5）开始，向右寻找……
+7. 现在如果这是一个普通的列表（或者树，但是非常不平衡），将会需要更多轮查找
+
+关于树
+- 来自`Data.Set`和`Data.Map`的集合`set`和映射`map`是用树实现的
+- 它们实际上使用平衡二叉搜索树，其总是平衡，而不是普通的二叉搜索树
+- 现在，我们只会实现普通的二叉搜索树
+
+思路
+1. 树要么是空树，要么是一个包含某些值的元素以及两个树，听起来完美符合代数数据类型
+   ``` Haskell
+   data Tree a = EmptyTree | Node a (Tree a) (Tree a) deriving (Show, Read, Eq)
+   ```
+2. 我们将会创造函数来获取树和元素并插入该元素，而不是手动创建树
+3. 我们通过将我们希望插入的值和根节点比较来实现
+   1. 如果插入值更小，向左
+   2. 如果插入值更大，向右
+   3. 我们对于每个后续的节点这样做，直到我们到达空树
+   4. 一旦我们到达空树，我们只需向该节点插入值，而不是空树
+4. 在C语言中，我们会通过修改树内的指针和值
+5. 在Haskell中，我们不能真正修改我们的树，我们只能每次在选择向左或者向右时，创建新的子树；最终，插入函数返回完全新的树
+6. 因为Haskell并不真正具有指针的概念，只有值
+7. 所以，我们插入函数的类型会是某种类似于`a -> Tree a -> Tree a`的东西，获取一个元素和树然后返回一个新的树，包含该元素
+8. 听起来可能低效率，但是惰性会处理这个问题
+
+函数
+- 两个函数
+  1. 工具函数创造一个单树（只有一个节点的树）
+  2. 将一个元素插入到树中
+  ``` Haskell
+  singleton :: a ->  Tree a
+  singleton x = Node x EmptyTree EmptyTree
+
+  treeInsert :: (Ord a) => a -> Tree a -> Tree a
+  treeInsert x EmptyTree = singleton x
+  treeInsert x (Node a left right)
+      | x == a = Node x left right
+      | x < a  = Node a (treeInsert x left) right
+      | x > a  = NOde a left (treeInsert x right)
+  ```
+- 单体（singleton）函数只是一个创造一个具有元素以及两个空子树的快捷方式
+- 插入函数中
+  - 我们首先具有边界条件作为模式
+  - 如果我们已经到达了空子树，表示我们到达了我们想到的地方，我们放置一个具有我们的元素的单树
+  - 如果我们没有插入到空树，需要检查一些东西
+    1. 如果插入的元素等于根元素，返回一个相同的树
+    2. 如果更小，那么返回一个具有相同根值的树，相同的右子树，以及防止一个插入我们值的左子树
+    3. 如果更大，也一样
+- 接下来创建一个函数检查某些元素是否在树中
+  1. 定义边界条件，如果在查找一棵空树，肯定不在（注意这和从列表中搜索元素相同）
+  2. 如果元素在根节点，找到
+  3. 如果寻找的元素小于根节点，搜索左子树；如果更大，搜索右子树
+  ``` Haskell
+  treeElem :: (Ord a) => a -> Tree a -> Bool
+  treeElem x EmptyTree = False
+  treeElem x (Node a left right)
+      | x == a = True
+      | x < a  = treeElem x left
+      | x > a  = treeElem x right
+  ```
+- 从一个列表中使用`fold`来创建一棵树
+  ``` Haskell
+  ghci> let nums = [8,6,4,1,7,3,5]
+  ghci> let numsTree = foldr treeInsert EmptyTree nums
+  ghci> numsTree
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">总结：代数数据结构真的酷</div>
+
+</div>
 <h2 id="7989C8EE">类型类102</h2>
+<div class="sheet-wrap"><div class="sheet-caption">本节内容</div>
+
+
+- 之前的学习
+  - 学习了一些Haskell标准类型类，以及它们里面有哪些类型
+  - 我们学习了自动创造我们自己的类型示例，使用标准类型类，让Haskell为我们派生示例
+- 本小节
+  - 学习如何创造我们自己的类型类，如何手动创造它们的类型实例
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">类型类的简要重述</div>
+
+
+- 类型类就像接口
+- 一个类型类定义了一些行为（比如比较相等性，比较顺序，枚举）
+- 类型被规定为这个类型类的实例就可以具有那样的行为
+- 类型类的行为通过定义函数或者就是我们可以做的类型声明来实现的
+- 当我们说一个类型是类型类的实例，我们的意思是我们可以对那个类型使用类型类定义的函数
+- 类型类和Java或者Python等语言中的类并没有什么关系，这困惑住了很多人
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Eq类型类</div>
+
+
+- Eq类型类用于可以比较相等的类型
+- 他定义了函数`==`和`/=`
+- 如果我们具有一个类型，比如`Car`，然后用`==`比较两个`Car`有意义，那么`Car`作为`Eq`的一个实例就有意义
+- `Eq`类型在标准prelude中定义的方式
+  ``` Haskell
+  class Eq a where
+      (==) :: a -> a -> Bool
+      (/=) :: a -> a -> Bool
+      x == y = not (x /= y)
+      x /= y = not (x == y)
+  ```
+- 当我们写`class Eq a where`，就表示我们在定义一个新的类型类叫`Eq`
+- `a`将会代表我们马上用`Eq`创造的实例，这是一个类型变量
+- 我们定义数个函数。实现函数体本身并不是强制性的，我们只需要指定函数的类型声明
+- 我们只是用相互递归的方式实现了函数体，我们不需要做这件事，但是我们做了，我们会看到这如何有帮助
+- 注：如果我们定义了比如类型`Eq a where`，然后在类型中定义一个类型声明`(==) :: a -> a -> Bool`，当我们之后检查函数的类型时，将会具有类型`(Eq a) => a -> a -> Bool`
+- 一旦我们拥有了类，我们可以干什么？
+- 一旦我们开始创建那个类的类型实例，我们开始获得一些好的机制
+  - `data TrafficLight = Red | Yellow | Green`
+  - 定义了交通灯的状态
+  - 注意我们没有从它派生任何类型实例，因为我们将要手动编写一些实例，即使我们可以派生它们
+  - 我们让它成为`Eq`的一个实例
+    ``` Haskell
+    instance Eq TrafficLight where
+        Red == Red = True
+        Green == Green = True
+        Yellow == Yellow = True
+        _ == _ = False
+    ```
+  - 我们通过使用`instance`关键字来做这件事，所以`class`用于定义新的类型类，`instance`是用来创造我们的类型类的类型实例
+- 因为`==`已经靠`/=`定义，反之亦然，我们只需要在实例声明中覆盖掉其中一个
+- 这称为类型类的最小完全定义——我们需要实现的最少函数，使我们的类型可以像它声称的那样做出行为
+- 为了完成`Eq`的最小完全定义，我们必须覆盖`==`或者`/=`的其中一个
+- 我们只通过模式匹配就实现了`==`，因为不同的情况很多，所以我们用兜底模式（catch-all pattern）
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Show类型类</div>
+
+
+- 让`TrafficLight`手动成为`Show`的示例
+- 实现`show`函数，其获取一个值然后返回字符串
+  ``` Haskell
+  show Red = "Red light"
+  show Yellow = "Yellow light"
+  show Green = "Green light"
+  ```
+  我们又一次使用模式匹配来实现了我们的目标
+- 尝试它能否运行\\
+  *略*
+- 我们可以只要派生`Eq`，然后它就会具有相同的效果；但是派生`Show`将会直接把值转换成字符串，如果我们想让灯显示出"Red light"，我们只能手动编写实例声明
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">创造类型类的子类</div>
+
+
+- 你也可以创造类型类，作为其它类型类的子类，比如`Num`的类声明（局部）
+  ``` Haskel
+  class (Eq a) => Num a where
+      ...
+  ```
+- 如我们之前提到的，有很多地方可以塞上类约束
+- 本质上我们是在说我们只有在一个类型是`Eq`的实例时，才能让它作为`Num`的实例
+- 它其实只是一个类型声明上的类约束！
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">为什么Maybe或者list类型不能作为类型类的实例？</div>
+
+
+- 因为函数中的所有类型必须是具体的（concrete），所以`a`作为一个具体类型使用
+- 这就是为什么我们不能：
+  ``` Haskell
+  instance Eq Maybe where
+      ...
+  ```
+- 我们可以编写
+  ``` Haskell
+  instance Eq (Maybe m) where
+      Just x == Just y = x == y
+      Nothing == Nothing = True
+      _ == _ False
+  ```
+- 有一个问题，我们并没有确认Maybe包含的东西可以用来比较相等！所以我们要修改成这样
+  ``` Haskell
+  instance (Eq m) => Eq (Maybe m) where
+      Just x == Just y = x == y
+      Nothing == Nothing = True
+      _ == _ False
+  ```
+- 我们需要添加类型约束！
+- 这也正是Haskell会如何派生实例
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">关于类声明中的类约束</div>
+
+
+- 大多数时候
+  - 类声明中的类约束用于让一个类型类成为另一个类型类的子类
+  - 实例声明中的类约束用于表达关于某些类型的内容的要求
+- 例如，我们要求了`Maybe`的内容也是`Eq`类型类的一部分
+- 当创建实例时，如果你看到一个类型作为具体类型在类型声明中使用（如`a`在`a -> a -> Bool`），你必须提供类型参数并且添加括号，因此最终形成具体类型
+- 注：考虑你将会创建实例的类型将会在类声明中替换参数
+- 哦，还有一件事
+  - 如果你想要看是哪种类型类的实例，只要在GHCI中做`:iinfo YourTypeClass`
+  - `:info`也可用于类型和类型构造器
+  - 如果你`:info Maybe`，它将会展示所有Maybe作为实例的类型类
+  - `:info`可以向你展示函数的类型声明
+
+</div>
 <h2 id="BE3DEDFC">一种是-否类型类</h2>
-<h2 id="C1FB41C2">函数类型类</h2>
+<div class="sheet-wrap"><div class="sheet-caption">实现类似JavaScript的Bool行为</div>
+
+
+- 在JavaScript和其它弱类型语言中，你可以几乎放任何东西到if表达式中
+- 尽管严格使用Bool作为布尔语义（sementics）在Haskell中工作得非常好，让我们尝试实现类似JavaScript的行为
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">类声明</div>
+
+
+从类声明开始
+- 代码
+  ``` Haskell
+  class YesNo a where
+      yesno :: a -> Bool
+  ```
+- YesNo类型类定义了一个函数，这个函数获取一个类型的一个值，可以被看作包含一些真值（true-ness）概念，然后告诉我们它是否为真
+- 注意我们定义函数的方式，a必须为具体类型
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">实例</div>
+
+
+- 对于数字，我们假定（和JavaScript一样）任何非0数字都为真（true-ish），0为假（false-ish）
+  ``` Haskell
+  instance YesNo Int where
+      yesno 0 = False
+      yesno _ = True
+  ```
+- 空列表（以及字符串）是非值（no-ish value），而非空列表是是值（yes-ish value）
+  ``` Haskell
+  instance YesNo [a] where
+      yesno [] = False
+      yesno _  = True
+  ```
+- Bool类型本身也包含了真假值
+  ``` Haskell
+  instance YesNo Bool where
+      yesno = id
+  ```
+  什么是`id`？只是一个标准库函数，获取一个参数并返回相同的东西
+- Matbe作为一个示例
+  ``` Haskell
+  instance YesNo (Maybe a) where
+      yesno (Just _) = True
+      yesno Nothing  = False
+  ```
+  现在，任何种类的形式"Maybe 某某"都是YesNo的一部分，某某是什么并不重要
+- 之前，我们定义了一个Tree类型，它代表了一个二叉搜索树，我们可以说一个空树是假（false-ish），任何非空树都是真（true-ish）
+  ``` Haskell
+  instance YesNo (Tree a) where
+      yesno EmptyTree = False
+      yesno _ True
+  ```
+- 交通灯能够有是和否的值吗？当然，如果是红，你停止，如果是绿，你通过。如果是黄？我通常跑过去
+  ``` Haskell
+  instance YesNo TrafficLight where
+      yesno Red = False
+      yesno _   = True
+  ```
+- 现在测试\\
+  *略*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">模仿if语句的函数</div>
+
+
+- 创造一个函数模仿if语句，但是它通过YesNo值运行
+  ``` Haskell
+  yesnoIf :: (YesNo y) => y -> a -> a -> a
+  yesnoIf yesnoVal yesResult noResult = if yesno yesnoVal then yesResult else noResult
+  ```
+- 非常直观，它获取是否值和两个东西，如果是否值更加"是"，它返回两个东西的第一个，否则它返回第二个
+- 测试\\
+  *略*
+
+</div>
+<h2 id="C1FB41C2">函子(Functor)类型类</h2>
+<div class="sheet-wrap"><div class="sheet-caption">列表类型是函子类型类的一部分</div>
+
+
+- 我们遇到了标准库里的很多类型类
+- 现在你可能在想列表，因为列表之间的映射是Haskell中非常主导的习惯
+- 列表（list）类型是函子（Functor）类型类的一部分
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">演示一个函子类型类的实现</div>
+
+
+- 演示函子类型类的实现
+  ``` Haskell
+  class Functor f where
+      fmap :: (a -> b) -> f a -> f b
+  ```
+- 我们看到它定义了一个函数，`fmap`，不提供任何默认实现
+- `fmap`的类型很有趣，之前类型类定义中的类型变量所代表的类型是具体类型；但是现在，`f`不是一个具体类型，而是一个类型构造器，获取一个类型参数
+- 我们看到`fmap`获取一个从一个类型到另一个类型的函数，以及一个函子，其应用于一个类型，最终返回应用于另一个类型的函子
+- 这听起来有点迷，不要担心。只要看看几个示例就明白了
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：map的启发——[]作为函子</div>
+
+
+- 看看map的类型签名：`map :: (a -> b) -> [a] -> [b]`
+- 有趣，它获取一个从一个类型到另一个类型的函数，以及一种类型的列表，返回另一种类型的列表
+- 我们发现了一个函子！
+- 实际上，map就是一个只针对列表的fmap，这就是列表作为Functor类型类的示例的方式
+  ``` Haskell
+  instance Functor [] where
+      fmap = map
+  ```
+- 注意我们没有写`instance Functor [a] where`，因为`fmap :: (a -> b) -> f a -> f b`中的`f`是获取一个类型的类型构造器，而`[a]`已经是一个具体类型了
+- 尝试：`fmap`和`map`用在列表上\\
+  *略*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Maybe作为函子</div>
+
+
+- 可以像盒子一样的类型可以作为函子
+  - 你可以把列表想成一个盒子，具有无数个小隔间
+  - Maybe也可有类似于盒子的特性；它可以要么什么都不包含，要么包含一个项目
+- Maybe作为一个函子
+  ``` Haskell
+  instance Functor Maybe where
+      fmap f (Just x) = Just (f x)
+      fmap f Nothing = Nothing
+  ```
+- 请注意我们没有写`instance Functor (Maybe m) where`，函子想要的是获取一个类型的类型构造器，而不是一个具体类型
+- `fmap`的实现非常简单
+  1. 如果是Nothing的空值，那么就返回Nothing；类比map获取空盒子，我们得到空盒子；很合理
+  2. 如果不是一个空值，而是一个包含在Just中的单个值，我们将函数应用到Just的内容上
+- 测试代码
+  ``` Haskell
+  ghci> fmap (++ " HEY GUYS IM INSIDE THE JUST") (Just "Something serious.")
+  Just "Something serious. HEY GUYS IM INSIDE THE JUST"
+  ghci> fmap (++ " HEY GUYS IM INSIDE THE JUST") Nothing
+  Nothing
+  ghci> fmap (*2) (Just 200)
+  Just 400
+  ghci> fmap (*2) Nothing
+  Nothing
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Tree类型作为函子</div>
+
+
+- 另一种可以被映射并且作为Functor的一个实例的类型是我们的Tree类型
+  - 它可以被想成一个盒子
+  - 并且Tree类型构造器正是获取一个类型参数
+- 如果将fmap当作用在Tree上的函数，它的类型签名`(a -> b) -> Tree a -> Tree b`
+- 我们会在这里使用迭代
+  - 自空树映射会产生空树
+  - 自非空树映射会产生一个包含被应用以我们的函数的根值，其左右子树将会也会被映射以我们函数
+  ``` Haskell
+  instance Functor Tree where
+      fmap f EmptyTree = EmptyTree
+      fmap f (Node x leftsub rightsub) = Node (f x) (fmap f leftsub) (fmap f rightsub)
+  ```
+  测试
+  ``` Haskell
+  ghci> fmap (*2) EmptyTree
+  EmptyTree
+  ghci> fmap (*4) (foldr treeInsert EmptyTree [5,7,3,2,1,7])
+  Node 28 (Node 4 EmptyTree (Node 8 EmptyTree (Node 12 EmptyTree (Node 20 EmptyTree EmptyTree)))) EmptyTree
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Either的部分应用作为函子</div>
+
+
+- `Either a b`能够作为函子吗？
+- Functor类型类想要一个类型构造器，其只获取一个类型参数但是Either获取了两个
+- 我们会喂给它一个类型参数，部分应用Either，因此它具有一个游离（free）的参数
+- `Either a`作为一个函子在标准库的实现方式
+  ``` Haskell
+  instance Functor (Either a) where
+      fmap f (Right x) = Right (f x)
+      fmap f (Left x)  = Left x
+  ```
+- 如果fmap对于Either a特化，类型签名应该为`(b -> c) -> Either a b -> Either a c`，因为它和`(b -> c) -> (Either a) b -> (Either a) c`一个意思
+- 实现中，我们映射了Right值构造器的情形，但是Left的情形没有做
+  - 因为`data Either a b = Left a | Right b`
+  - 如果我们想让函数映射两个值，a和b应该要为同样的类型
+  - 或者映射两个不同类型的值不合理
+  - 我们看到第一个参数必须保持原样，而第二个值可以改变，第一个值实际上是Left值构造器实施（actualized）的
+- 这也和我们的盒子类比（analogy）符合，如果我们把Left部分作为某种空盒子，包含写在这边的错误信息，告诉我们为何为空值
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Data.Map的Map也可以作为函子</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">本节小节</div>
+
+
+- 通过Functor类型类，我们看到了类型类如何能够表达非常炫酷的高阶概念
+- 我们也进一步练习了部分应用类型（partially applying types）和制造实例
+- 之后的其中一个章，我们也要看某些适用于函子的规则
+- 注意：函子应该遵循一些规则，这样它们会具有一些性质，我们可以依赖且不需要多想
+  - 如果我们使用`fmap (+1)`至列表`[1,2,3,4]`我们期待结果是`[2,3,4,5]`，而不是反过来`[5,4,3,2]`
+  - 如果我们使用`fmap (\a -> a)`至某些列表，我们期待获得相同的列表作为结果
+  - 例如如果将错误的函子实例给到我们的Tree类型，使用`fmap`应用到树上，产生的结果树违反先前树的规则
+- 接下来的某一章，我们会深入了解函子规则
+
+</div>
 <h2 id="6613BA46">Kinds和一些type-foo</h2>
 </div>
