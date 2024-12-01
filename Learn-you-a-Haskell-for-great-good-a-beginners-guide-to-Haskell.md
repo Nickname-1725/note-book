@@ -55,6 +55,7 @@
   - [一种是-否类型类](#BE3DEDFC)
   - [函子(Functor)类型类](#C1FB41C2)
   - [Kinds和一些type-foo](#6613BA46)
+- [输入和输出](#69A48341)
 </div>
 
 <div class="main">
@@ -2603,4 +2604,124 @@ f . g = \x -> f (g x)
 
 </div>
 <h2 id="6613BA46">Kinds和一些type-foo</h2>
+<div class="sheet-wrap"><div class="sheet-caption">本节介绍</div>
+
+
+- 我们看到了类型构造器可以部分应用，就像函数可以部分应用一样
+- 本节我们看形式化定义类型如何应用到类型构造器，就如同我们看如何通过类型声明形式化定义值如何应用到函数
+- 如果你不理解，你并不真的需要阅读本节来继续你的魔法Haskell学习，不用担心
+- 理解这个将会让你对类型系统理解非常透彻
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">种类——类型的小标签</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">使用:k检查种类</div>
+
+
+- 整数
+  ``` Haskell
+  ghci> :k Int
+  Int :: *
+  ```
+- 其中'*'表示这个类型是一个具体类型，一个具体类型是不获取任何类型参数和值
+- 现在看看`Maybe`的种类
+  ``` Haskell
+  ghci> :k Maybe
+  Maybe :: * -> *
+  ```
+- "Maybe"类型构造器获取一个具体类型（如`Int`），然后返回一个具体类型（如`Maybe Int`）
+- "* -> *"代表类型构造器获取一个具体类型并返回一个具体类型
+  ``` Haskell
+  ghci> :k Maybe Int
+  Maybe Int :: *
+  ```
+- 一种类比（类型和种类是两种不同的东西）是，如果我们进行`:t isUpper`和`:t isUpper 'A'`
+  - `isUpper`具有`Char -> Bool`类型
+  - 而`isUpper 'A'`具有`Bool`类型
+  然而，两种类型，都有种类`*`
+- 我们对类型使用`:k`来获取它的种类，如同我们对值使用`:t`获取它的类型
+- Either类型
+  ``` Haskell
+  ghci> :k Either
+  Either :: * -> * -> *
+  ```
+  看起来有点像函数类型声明。类型构造器柯里化，所以我们可以应用它们
+- 当我们想要让Either成为Functor类型类的一部分，我们必须部分应用它
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：做Tofu类型类和Frank类型</div>
+
+
+- 看这个类型类
+  ``` Haskell
+  class Tofu t where
+      tofu :: j a -> t a j
+  ```
+- 我们怎么能够让一个类型变成这么奇怪的类型类的一个实例呢？
+- 我们看看它的种类是什么
+  - 因为"j"用作"tofu"函数的一个值的类型，并且被作为参数获取，`j a`具有种类"*"
+  - 我们假定a是`*`因此我们可以推断j具有种类`* -> *`
+  - 我们看到`t`也应该产生一个具体值，j具有种类`* -> *`，我们推断t应该为种类`* -> (* -> *) -> *`
+  - 所以t获取一个具体类型（a），以及获取一个具体类型的类型构造器（j），并且产生一个具体类型，哇
+- 现在我们创建一个具有种类`* -> (* -> *) -> *`的类型
+  ``` Haskell
+  data Frank a b = Frank {frankField :: b a} dering (Show)
+  ```
+  - 我们怎么知道这个类型的种类是`* -> (* -> *) -> *`呢？
+  - ADT的字段是用来捕获值的，所以它们一定是"*"种类
+  - 我们假定a是"*"，这就表示b获取一个类型参数，所以它的种类是`* -> *`
+  - 现在我们知道了a和b的种类，因为它们是Frank的参数，我们发现Franck的种类是`* -> (* -> *) -> *`
+- 测试检查
+  ``` Haskell
+  ghci> :t Frank {frankField = Just "HAHA"}
+  Frank {frankField = Just "HAHA"} :: Frank [Char] Maybe
+  ghci> :t Frank {frankField = Node 'a' EmptyTree EmptyTree}
+  Frank {frankField = Node 'a' EmptyTree EmptyTree} :: Frank Char Tree
+  ghci> :t Frank {frankField = "YES"}
+  Frank {frankField = "YES"} :: Frank Char []
+  ```
+- 让Frank成为Tofu的一个实例非常简单
+  - 我们看到tofu获取一个`j a`，返回一个`t a j`
+  - 结果类型应该为`Frank Int Maybe`
+  ``` Haskell
+  instance Tofu Frank where
+      tofu x = Frank x
+  ghci> tofu (Just 'a') :: Frank Char Maybe
+  Frank {frankField = Just 'a'}
+  ghci> tofu ["HELLO"] :: Frank [Char] []
+  Frank {frankField = ["HELLO"]}
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：做Barry类型</div>
+
+
+- 创建一个这个数据类型
+  ``` Haskell
+  data Barry t k p = Barry { yabba :: p, dabba :: t k}
+  ```
+- 现在我们想要让它成为Functor的一个实例
+- 分析种类为`(* -> *) -> * -> * -> *`
+- 我们需要部分应用前两个类型参数，表示实例声明开头应该是`instance Functor (Barry a b) where`
+- 如果fmap对Barry特化，以及我们看到fmap的类型为`fmap :: (a -> b) -> Barry c d a -> Barry c d b`，因为我们把Functor的f替换成了`Barry c d`，Barry的第三个类型参数应该变化
+  ``` Haskell
+  instance Functor (Barry a b) where
+      fmap f (Barry {yabba = x, dabba = y}) = Barry {yabba = f x, dabba = y}
+  ```
+- 我们在第一个字段上影射了f
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">本节小结</div>
+
+
+- 我们看了类型参数如何工作，以及有点用种类规范化(formalized)了它们，正如同我们用类型声明规范化了函数参数
+- 我们看到函数和类型构造器之间存在有趣的类比，然而它们是完全不同的东西
+- 当实际操作Haskell的时候，你通常不需要弄种类，以及像我们现在这样做一些干扰
+- 通常，你只需要部分应用你自己的类型到`* -> *`或者`*`，当使其作为某个标准类型类的一个实例时
+- 同样有趣的是看类型拥有它们自己的小类型
+- 再一次，你并不需要真的理解我们在这里做的所有事情才能继续读下去，但是如果你理解了种类如何工作，有可能你对Haskell类型系统掌握已经很牢固了
+
+</div>
+<h1 id="69A48341">输入和输出</h1>
 </div>
