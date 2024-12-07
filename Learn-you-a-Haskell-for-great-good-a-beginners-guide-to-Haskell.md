@@ -56,6 +56,12 @@
   - [函子(Functor)类型类](#C1FB41C2)
   - [Kinds和一些type-foo](#6613BA46)
 - [输入和输出](#69A48341)
+  - [Hello, world!](#E4123C56)
+  - [文件和流](#2876763C)
+  - [命令行变量](#8C165134)
+  - [随机性](#94B993AA)
+  - [字节串](#F5941F61)
+  - [异常](#6C548C8F)
 </div>
 
 <div class="main">
@@ -2724,4 +2730,200 @@ f . g = \x -> f (g x)
 
 </div>
 <h1 id="69A48341">输入和输出</h1>
+<div class="sheet-wrap"><div class="sheet-caption">概述</div>
+
+
+纯函数式语言的特点
+- 我们提到了Haskell是一个纯函数语言
+- 在命令式语言中，你通常通过给计算机一系列执行步骤来完成事情，而函数式编程则是定义东西是什么
+- Haskell中，函数不能改变一些状态，例如改变变量的内容（当函数改变状态，我们说函数具有副作用）
+- Haskell中的函数唯一能做的事情就是基于我们给它的参数，返回给我们一些结果
+- 如果函数用相同的参数调用两次，它必须返回相同结果
+- 如果你来自一个命令式世界，这可能看起来有点局限，我们已经看到了这实际上很酷
+- 在命令式语言中，你无法保证一个简单的函数只是处理一些数字，而不是在处理这些数字的时候还在绑架你的狗、用土豆刮你的车
+- 例如说，我们实现的二叉搜索树，我们的函数实际上是在返回一棵新的树，因为它并不改变原先的那个
+
+纯函数式有个问题
+- 尽管函数不能改变状态很好，因为它帮助我们推理程序，但是有个问题：如果函数在世界上不改变任何东西，它怎么告诉我们它计算了什么？
+- 为了告诉我们它计算了什么，它必须改变我们输出设备的状态（通常是屏幕的状态），然后发出光子到达我们的大脑改变我们思想的状态
+
+处理副作用
+- 看来Haskell确实有一个非常聪明的系统，用于处理具有副作用的函数，它干净地分离我们程序纯的部分以及不纯的部分，后者做了与键盘、屏幕沟通的脏活
+- 这两个部分分开后，我们仍然可以推理我们的纯程序，并且利用纯度提供的所有东西，例如惰性、健壮性以及模块化，同时有效地和外部世界沟通
+
+</div>
+<h2 id="E4123C56">Hello, world!</h2>
+<h2 id="2876763C">文件和流</h2>
+<h2 id="8C165134">命令行变量</h2>
+<h2 id="94B993AA">随机性</h2>
+<h2 id="F5941F61">字节串</h2>
+<h2 id="6C548C8F">异常</h2>
+<div class="sheet-wrap"><div class="sheet-caption">不同语言如何处理异常</div>
+
+
+- 所有的语言具有过程（procedures）、函数，以及一些可能以某些方式失败的代码片段
+- 不同的语言具有不同处理这些失败的方式
+  - C语言中，我们通常使用一些非正常返回值（例如-1或者空指针）来指示函数返回的东西不应该被视作一个正常值
+  - Java和C#，则倾向于使用异常（exceptions）来处理失败；当抛出异常时，控制流跳转到一些我们已经定义的代码，其做某些清理然后可能重新抛出异常，因此一些其它的错误处理代码可以处理另一些事情
+- Haskell有一个非常好的系统
+  - 代数数据类型允许类型如Maybe和Either，我们使用这些类型的值来代表结果可能在或者不在
+  - C语言中，失败时返回，比如说，-1完全是管理的问题，它对人类只有特别的含义；如果我们不小心，我们可能将这些非正常值作为普通值处理，然后它们可能在我们的代码中导致大破坏（havoc）或者沮丧（dismay）
+- 在这一方面，Haskell的类型系统给我们一些更需要的安全
+- 函数`a -> Maybe b`清晰地指出它必须产生包裹在Just中的`b`或者它必须返回`Nothing`，这个类型不同于普通的`a -> b`，如果我们尝试互换使用这两个函数，编译器将会对我们抱怨
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Haskell处理外部世界的异常</div>
+
+
+- Haskell仍然有关于异常的支持，因为它在I/O语境下更加有意义
+- 当处理外部世界的时候，很多事情都可以出错，因为它非常不可信赖
+  - 例如当打开一个文件，一堆事情可以出错
+  - 文件可能锁住了，它可能根本不存在或者硬盘驱动或者某些东西可能根本不存在
+  - 因此，当这些错误发生的时候，能够跳转到我们代码的一些错误处理部分是好的
+- I/O代码（也就是非纯代码）可以抛出异常
+  - 它有意义
+  - 那如果是纯代码呢？它也可以抛出异常；
+  - 想想div和head函数，它们分别具有类型`(Integral a) => a -> a -> a`以及`[a] -> a`，返回类型没有Maybe或者Either因为它们都可能会失败！
+  - 如果你除以零，div在你面前爆炸；当你给它一个空列表，head开始发脾气
+    ``` Haskell
+    ghci> 4 `div` 0
+    *** Exception: divide by zero
+    ghci> head []
+    *** Exception: Prelude.head: empty list
+    ```
+- 纯代码可能抛出异常，但是它们只能在我们代码的I/O部分被捕获（当我们在进入main的do块中时）
+  - 这是因为你不知道什么东西何时在纯代码中计算，因为它是惰性的，且具有良好定义的执行顺序；但I/O知道
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">要尽可能减少程序中的I/O部分</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：打开文件</div>
+
+
+- 例如说，我们可以尝试打开一个文件，然而表明文件已被删除或者怎么着的
+- 看看这个程序，其打开一个文件，它的名称作为一个命令行参数给定，并且告诉我们文件有多少行
+  ``` Haskell
+  import System.Environment
+  import System.IO
+
+  main = do (fileName:_) <- getArgs
+            contents <- readFile fileName
+            putStrLn $ "The file has " ++ show (length (lines contents)) ++ " lines!"
+  ```
+  - 我们进行`getArgs`IO行为然后将列表中第一个字符串绑定，产生文件名；
+  - 然后我们用那个名称内容调用函数的内容
+  - 最后，我们将lines应用到这些内容来获取一列行，然后我们获得了列表的长度并送给show来获得那个数字的字符串表示
+- 它如预期运行，但是如果我们给它不存在的文件名会发生什么？
+  ``` 
+  $ runhaskell linecount.hs i_dont_exist.txt
+  ```
+  > linecount.hs: i_dont_exist.txt: openFile: does not exist (No such file or directory)
+- 我们从GHC获得了一个错误，告诉我们文件不存在，我们的程序崩溃了
+- 如果我们想要在文件不存在时，打印出一条更好的信息呢？
+- 一种方式是在尝试用来自`System.Directory`的`doesFileExist`函数打开文件之前先检查文件是否存在
+  ``` Haskell
+  import System.Environment
+  import System.IO
+  import System.Directory
+
+  main = do (fileName:_) <_ getArgs
+         fileExists <- doesFileExist fileName
+         if fileExists
+             then do contents <- readFile fileName
+                     putString $ "The file has " ++ show (length (lines contents)) ++ " lines!"
+             else do putStrLn "The file does't exist!"
+  ```
+  - 我们做了`fileExists <- doesFileExist 文件名`，因为`doesFileExist`具有类型`doesFileExist :: FilePath -> IO Bool`，它表示它返回I/O行为具有布尔值，告诉我们文件是否存在，我们不能直接在if表达式里面使用`doesFileExist`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">使用异常（继续示例：打开文件）</div>
+
+
+- 另一种解决方式是使用异常
+  - 为了通过使用异常来处理这个问题，我们将要利用来自于`System.IO.Error`的`catch`函数
+  - 它的类型是`catch :: IO a -> (IOError -> IO a) -> IO a`
+  - 它获取两个参数
+    1. I/O行为，例如说，可以是尝试打开一个文件的I/O行为
+    2. 所谓的handler
+  - 如果第一个传入的I/O行为抛出一个I/O异常，那个异常传入handler，其决定做什么
+  - 所以最终的结果是I/O行为，要么行使和第一个参数相同的行为，要么它将会做handler让其做的事情，如果第一个I/O行为抛出异常的话
+- 如果你熟悉Java或者Python里面的try-catch块的话，catch函数和它们类似
+  1. 第一个参数是尝试的事情，有点像其它命令式语言中的try块
+  2. 第二个参数是handler，其获取一个异常，如同大多数catch块捕获异常，然后你随即可以检验查看发生了什么
+  handler在异常抛出时触发
+- handler获取类型IOError的值，它是一个类型
+  - 是I/O异常发生的信号；
+  - 它也携带了关于被抛出异常的类型的信息
+  - 这种类型如何实现取决于语言它本身，这意味着我们不能通过对其模式匹配来检查类型IOError的值，正如我们不能模式匹配类型IO某某的值
+  - 我们可以用一堆有用的断言来弄明白关于类型IOError的值，我们将会一秒钟学会
+- 让我们使用我们的新朋友！
+  ``` Haskell
+  import System.Environment 
+  import System.IO
+  import System.Error
+
+  main = toTry `catch` handler
+
+  toTry :: IO ()
+  toTry = do (fileName:_) <- getArgs
+             contents <- readFile fileName
+             putStrLn $ "The file has " ++ show (length (lines contents)) ++ " lines!"
+
+  handler :: IOError -> IO ()
+  handler e = putStrLn "Whoops, had some trouble!"
+  ```
+  - handler中，我们没有检查我们获得了什么样的IOError
+  - 我们光说“有一些麻烦！”，适用任何种类的错误
+- 如果某些其它的异常发生了，而我们不想捕获，比如我们正在介入程序或者其它的事情，该怎么样？
+  - 这就是为什么我们要做其它语言中我们同样经常做的事情：我们将要检查我们获得了何种异常
+  - 如果是我们在等的异常种类，我们做我们的事情；如果不是，我们把那个异常抛回去放归野外
+  ``` Haskell
+  import System.Environment
+  import System.IO
+  import System.IO.Error
+
+  main = toTry `catch` handler
+
+  toTry :: IO ()
+  toTry = do (fileName:_) <- getArgs
+             contents <- readFile fileName
+             putStrLn $ "The file has " ++ show (length (lines contents)) ++ " lines!"
+
+  handler :: IOError -> IO ()
+  handler e 
+      | isDoesNotExistError e = putStrLn "The file doesn't exist!"
+      | otherwise = ioError e
+  ```
+  - 除了handler，一切都保持原样；我们修改了handler让其只匹配特定一组I/O异常
+  - 这里我们使用了`System.IO.Error`里面的两个新的函数——`isDoesNotExistError`和`ioError`
+    - `isDoesNotExist`: 判断`IOErrors`的谓词，接受一个`IOError`并返回True或者False，类型为`DoesNotExistError :: IOError -> Bool`
+    - `ioError`: 如果异常不是由文件不存在触发的，我们重新抛出异常，让其通过handler用ioError函数传递，类型为`ioError :: IOException -> IO a`，它获取`IOError`然后产生可以抛出异常的I/O行为，IO行为的类型为`IO a`，因为它永远不会真的产生一个结果，所以它可以表现为IO任何东西
+- 所以在toTryI/O里面抛出了异常，我们将其与一个不会因文件存在而触发的do块胶粘在一起，``toTry `catch` handler``将会捕获异常，然后重新抛出，很酷？
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">对IOError工作的谓词</div>
+
+
+对IOError工作的谓词有：
+1. isAlreadyExistsError
+2. isDoesNotExistsError
+3. isAlreadyInUseError
+4. isFullError
+5. isEOFError
+6. isIllegalOperation
+7. isPermissionError
+8. isUserError
+
+这些大多数都是自解释的
+- `isUserError`在我们使用函数`userError`产生异常的时候求值为真，它被用于从我们的代码中创造异常并且使其带有字符串
+- 例如，你可以做`ioError $ userError "remote computer unplugged!"`，尽管你使用像`Either`和`Maybe`来表达可能的失败更好，而不是自己用userError抛出异常
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">System.IO.Error导出的有用函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：更倾向于使用Either等类型</div>
+
+</div>
 </div>
