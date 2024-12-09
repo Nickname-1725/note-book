@@ -62,6 +62,12 @@
   - [随机性](#94B993AA)
   - [字节串](#F5941F61)
   - [异常](#6C548C8F)
+- [函数化解决问题](#551B54A4)
+- [函子，应用函子以及Moniods](#4CC1C54A)
+  - [重提函子](#379CE627)
+  - [应用函子](#EDE43895)
+  - [newtype关键字](#03774CDA)
+  - [Monoids](#3E57A703)
 </div>
 
 <div class="main">
@@ -2926,4 +2932,151 @@ f . g = \x -> f (g x)
 <div class="sheet-wrap"><div class="sheet-caption">说明：更倾向于使用Either等类型</div>
 
 </div>
+<h1 id="551B54A4">函数化解决问题</h1>
+<h1 id="4CC1C54A">函子，应用函子以及Moniods</h1>
+<div class="sheet-wrap"><div class="sheet-caption">本章概述</div>
+
+
+- Haskell的纯、高阶函数组合，参数化代数数据类型，以及类型类允许我们以一个比其它语言可能的，还要高得多的层次实现多态
+- 我们不必思考类型属于一个大的类型层级（a big hierarchy of types）
+- 相反，我们考虑类型可以如何行为，然后将它们连接到合适的类型类
+- 一个Int可以表现得像很多东西；它可以表现得像可比较相等的东西，像可排序的东西，像可枚举的东西，等等
+- 类型类是开放的，这意思是我们可以定义我们自己的数据类型，考虑它可以表现得像什么，并且将其连接到定义它的行为的类型类
+- 因此以及因为Haskell的伟大的类型系统，其允许我们通过一个函数的类型声明指导关于它的很多东西，我们可以定义一些类型类，其定义了非常通用和抽象的行为
+- 我们已经见识了定义比较相等和比较排序的类型类，这些是非常抽象以及优雅的行为；
+- 但是我们并没有把它们想象成任何非常特别的东西，因为我们已经在我们生活大多数时候都在处理它们
+- 我们最近见识了函子，其基本上是可以被映射于的东西；这是一个示例，非常有用但是仍然非常抽象的特性，类型类可以描述
+- 本章中，我们将会更进一步观察函子，以及些微更加强大更加有用的函子版本，叫做应用函子（applicative functors）
+- 我们也将会看到monoids，它有点像插座
+
+</div>
+<h2 id="379CE627">重提函子</h2>
+<div class="sheet-wrap"><div class="sheet-caption">函子：快速回顾</div>
+
+
+- 函子（Functor）是可以被映射于的东西，像列表、Maybe、树等等
+- Haskell中，它们通过类型类Functor描述，其只有一个类型类方法，即fmap，其类型为`fmap:: (a -> b) -> f a -> f b`
+- 它是在说，给我一个函数获取a返回b，一个装着a（或者好几个a）的盒子，我将会给你一个装着b（或者好几个b）的盒子
+- 它有点应用函数到盒子里面的元素
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">注意：一句话建议</div>
+
+
+注意： **一句话建议**
+- 很多时候，盒子比喻用来帮助你获得函子如何工作的直觉
+- 过后，我们可能将相同的比喻用于应用函子（applicative functor）和monad
+- 它是一个可以的比喻，能够帮助人们首先理解函子，但是不要太扣字面意义，因为对于某些函子，盒子比喻被拉伸得很薄才能保持一些真相
+- 对于函子是什么，更加正确的术语应该是计算上下文（computational context）
+- 上下文可能是，计算可以具有值或者它可能失败（Maybe和Either a）或者是，可能有更多的值（list），像这样类似
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">函子必须具有的种类</div>
+
+
+- 如果我们想让一个类型构造器作为Functor的一个实例，它类型必须是`* -> *`，其代表着它必须获取恰好一个具体类型作为类型参数
+- 例如，Maybe可以作为一个参数因为它获取一个类型参数来产生具体类型
+- 如果类型构造器获取两个参数，像Either，我们必须部分应用类型构造器，直到其只获取一个类型参数
+- 我们已经学了很多种类型如何成为Functor的函子
+- 本小节，我们将会再看到函子的两个实例，即`IO`和`(->) r`
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">IO如何作为Functor的一个实例</div>
+
+
+- 当我们fmap一个函数到一个I/O行为，我们想要获得一个I/O行为做同样的事情，但是我们的函数应用在它的结果值
+  ``` Haskell
+  instance Functor IO where
+      fmap f action = do
+          result <- action
+          return (f result)
+  ```
+  - 将某些东西映射到一个I/O行为的结果将会是一个IO行为
+  - 所以马上开始，我们使用do语法来胶粘两个行为然后创造一个新的行为
+  - 在fmap的实现中，我们创造一个新的I/O行为，其首先实施原I/O行为，然后把它的结果称作result，然后，我们做`return (f result)`
+  - `return`是一个函数，制造一个I/O行为，它不做任何事情，但是只呈现某些东西作为它的结果
+  - 一个do块产生的行为将总会具有它最后一个行为的结果
+  - 这就是为什么我们使用return来制造一个I/O行为，它不做任何事情，它只是呈现`f result`作为新的I/O行为的结果
+- 我们可以玩一玩来获得一些直觉
+  ``` Haskell
+  main = do line <- getLine
+            let line' = reverse line
+            putStrLn $ "You said " ++ line' ++ " backwards!"
+            putStrLn $ "Yes, you really said " ++ line' ++ " backwards!"
+  ```
+- 也可以用fmap重写
+  ``` Haskell
+  main = do line <- fmap reverse getLine
+            putStrLn $ "You said " ++ line ++ " backwards!"
+            putStrLn $ "Yes, you really said " ++ line ++ " backwards!"
+  ```
+  - 就如同我们可以应用函数到Maybe盒子中的东西，我们也可以应用一个函数到IO盒子中的一个东西，只是它必须要走出进入到真实世界去获取某些东西
+  - 然后当我们用`<-`将它绑定到一个命名，这个命名将会反映结果，其已经被应用了reverse
+- IO行为`fmap (++ "!") getLine`表现的像是getLine，只是它的结果总是追加一个"!"
+- 如果你发现你自己正在将一个IO行为的结果绑定到一个命名，最终只是应用了一个函数到那个结果并且将其称为另一个东西，考虑使用`fmap`，因为它看起来更好看
+- 如果你想要应用多个变换于一些包含在函子内的数据，你可以在顶层（top level）声明你自己的函数，创造一个lambda函数，或者理想情况下创造一个函数组合
+  ``` Haskell
+  import Data.Char
+  import Data.List
+
+  main = do line <- fmap (intersperse '-' . reverse . map toUpper) getLine
+            putStrLn line
+
+  $ runhaskell fmapping_io.hs
+  hello there
+  E-R-E-H-T- -O-L-L-E-H
+  ```
+- 你可能知道，``intersperse '-' . reverse . map toUpper``是一个函数，就像写成`(\xs -> intersperse '-' (reverse (map toUpper xs)))`，只是更加漂亮
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">(->) r如何作为函子</div>
+
+
+- 另一个Functor的实例我们可能一直在打交道，但是不知道是个Functor，它是`(->) r`
+- 你现在可能有点困惑，因为到底`(->) r`是什么意思？
+- 函数类型`r -> a`可以写成`(->) r a`，当我们把它看成后者，我们用一种些微不同的眼光看待`(->)`，因为我们看到它只是个类型构造器，获取两个类型参数，正如同Either
+- 但是记住，我们说一个类型构造器应当更好获取一个类型参数，它才能作为Functor的一个实例
+  - 这就是为三的很么我们不能让`(->)`作为Functor的一个实例
+  - 但是如果我们部分应用，它不会产生任何问题
+- 函数怎么能成为函子？我们看看实现，它在`Control.Monad.Instances`中
+  - 注意： *没用的信息，忽略*
+  ``` Haskell
+  instance Functor ((->) r) where
+      fmap f g = (\x -> f (g x))
+  ```
+  - 首先，考虑fmap类型`fmap :: (a -> b) -> f a -> f b`
+  - 我们考虑fmap对于这个特定的实例如何表现：`fmap :: (a -> b) -> ((->) r a) -> ((->) r b)`
+  - 我们重写成`fmap :: (a -> b) -> (r -> a) -> (r -> b)`
+- 映射一个函数于一个函数来产生一个函数，就像映射一个函数于一个Maybe应当产生一个Maybe，以及映射到列表产生列表
+  - 类型`fmap :: (a -> b) -> (r -> a) -> (r -> b)`告诉我们什么？
+  - 这让你想起函数组合！你会看到它就是个函数组合
+  - 另一种编写这个实例的方式可能是
+    ``` Haskell
+    instance Functor ((->) r) where
+        fmap = (.)
+    ```
+- 试玩
+  - 首先做`:m + Control.Monad.Instances`
+  - 然后玩
+    ``` Haskell
+    ghci> :t fmap (*3) (+100)
+    fmap (*3) (+100) :: (Num a) => a -> a
+    ghci> fmap (*3) (+100) 1
+    303
+    ghci> (*3) `fmap` (+100) $ 1
+    303
+    ghci> (*3) . (+100) $ 1
+    303
+    ghci> fmap (show . (*3)) (*100) 1
+    "300"
+    ```
+- 盒子的类比在这里如何成立呢？如果你拉伸它，它就成立
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">让我们思考fmap的类型（提升函数）</div>
+
+</div>
+<h2 id="EDE43895">应用函子</h2>
+<h2 id="03774CDA">newtype关键字</h2>
+<h2 id="3E57A703">Monoids</h2>
 </div>
