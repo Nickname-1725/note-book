@@ -3075,8 +3075,153 @@ f . g = \x -> f (g x)
 </div>
 <div class="sheet-wrap"><div class="sheet-caption">让我们思考fmap的类型（提升函数）</div>
 
+
+- 在我们继续看fmap应该遵循的规则，让我们再想一想fmap
+- 类型`fmap :: (a -> b) -> f a -> f b`我们忘记了类约束`(Functor f) =>`，但是我们为了简洁忽略掉了它，因为我们不管怎么说都是在讨论函子
+- 当我们第一次了解柯里化函数时，我们说所有Haskell函数实际上都获取一个参数
+- 我们用很少的参数调用函数（即部分应用），我们获得新的函数，其获取剩下个数的参数
+- 同样地，如果我们写出`fmap :: (a -> b) -> (f a -> f b)`
+  - 我们可以把fmap不看作获取一个函数以及一个函子、返回一个函子的函数
+  - 而是看成一个获取一个函数的函数，其返回新的函数；它和原来的函数很像，只不过它获取一个函子作为参数，并且返回一个函子作为结果
+  - 所以是获取`a -> b`函数并且返回`f a -> f b`函数
+  - 这被称为提升函数（lifting a function）
+- 让我们用GHCI的`:t`命令玩玩
+  ``` Haskell
+  ghci> :t fmap (*2)
+  fmap (*2) :: (Num a, Functor f) => f a -> f a
+  ghci> :t fmap (replicate 3)
+  fmap (replicate 3) :: (Functor f) => f a -> f [a]
+  ```
+- 注意：当我们说函子下数（a functor over number），你可以想象成函子里面有个数字；前者有点炫，并且严格上更加正确，但是后者通常更容易理解
+- 如果你部分应用，比如说`fmap(++"!")`，然后在GHCI中把它绑定到一个命名，这甚至更加明显
+- *以下略*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">看看函子规则</div>
+
+
+我们期望所有的函子都表现特定种类的像是函子的（functor-like）特性和行为
+- 它们应该可靠地表现为可以被映射于的东西；调用fmap于一个函子应该只是对函子映射一个函数，没别的
+- 这个行为在函子规则中被描述
+- 有两个规则，Functor所有的实例都应该遵守；它们不是被Haskell自动强制要求的，所以你必须自己测试它们
+  1. 第一个函子规则是说，如果我们对一个函子映射id函数，我们拿回来的函子应该和最初的函子一样
+     - 如果形式化地说，它表示`fmap id = id`
+     - 看看这条规则是否成立 *略*
+  2. 第二个规则是说，组合两个函数然后将结果函数映射于函子，应该和首先映射一个函数于函子，然后映射另一个函数结果相同
+     - 形式化写，它代表着`fmap (f . g) = fmap f . fmap g`
+     - 或者另一种方式写对于任何函子F，应该满足：`fmap (f . g) F = fmap f (fmap g F)`
+     - 看看这条规则如何适用 *略*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">让我们看看一个病态例子：无法成为函子</div>
+
+
+- 病态的示例，类型构造器可以作为Functor类型类的实例但是不能真正成为一个函子，因为不满足规则
+- 我们有类型
+  ``` Haskell
+  data CMaybe a = CNothing | CJust Int a deriving (Show)
+  ```
+  C这里代表计数器
+- 这个类型看起来很像是`Maybe a`，只是`Just`部分包含两个字段而不是一个
+  - `Cjust`中第一个字段总是具有类型Int，它会是某种计数器
+  - 第二个字段类型是`a`，其来自于一个类型参数，它的类型将会取决于我们为`CMaybe a`选择的具体类型
+- 让我们玩
+  ``` Haskell
+  ghci> CNothing
+  CNothing
+  ghci> CJust 0 "haha"
+  CJust 0 "haha"
+  ghci> :t CNothing
+  CNothing :: CMaybe a
+  ghci> :t CJust 0 "haha"
+  Cjust 0 "haha" :: CMaybe [Char]
+  ghci> CJust 100 [1,2,3]
+  Cjust 100 [1,2,3]
+  ```
+- 如果我们使用CNothign构造器，没有字段；如果我们使用CJust构造器，第一个字段是一个整数而第二个字段是任何类型
+- 我们让它成为Functor的一个实例，从而每次我们使用fmap，类型应用到第二个字段，因此第一个字段增加1
+  ``` Haskell
+  instance Functor CMaybe where
+      fmap f CNothing = CNothing
+      fmap f (CJust counter x) = CJust (counter+1) (f x)
+  ```
+  这有点像Maybe的实例实现，除了当我们对一个不表示空盒子的值（一个CJust值）做fmap，我们不只是将函数应用到内容，我们同样将计数器增加1
+- 我们可以玩
+  ```
+  ghci> fmap (++"ha") (CJust 0 "ho")
+  CJust 1 "hoha"
+  ghci> fmap (++"he") (fmap (++"ha") (CJust 0 "ho"))
+  CJust 2 "hohahe"
+  ghci> fmap (++"blah") CNothing
+  CNothing
+  ```
+- 这遵循函子规则吗？为了看某个东西不遵循规则，只需要一个计数器例子就够了
+  ``` Haskell
+  ghci> fmap id (CJust 0 "haha")
+  CJust 1 "haha"
+  ghci> id (CJust 0 "haha")
+  CJust 0 "haha"
+  ```
+- CMaybe无法作为函子，即使它假装是个函子，使用它作为函子可能导致一些错误的代码
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">说明：函子规则可以产生对于函子更加可靠的函数</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">总结（略）</div>
+
 </div>
 <h2 id="EDE43895">应用函子</h2>
+<div class="sheet-wrap"><div class="sheet-caption">本节介绍</div>
+
+
+- 该小节中，我们将会看到应用函数（applicative functors），它们是增强版函子（beefed up functors）
+- 在Haskell中用Applicative类型类表示
+- 在Control.Applicative模块中可以找到
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">能否将获取两个参数的函数映射于函子</div>
+
+
+- Haskell中多参函数：柯里化
+- 目前，我们将函数映射到了函子上，我们经常映射只获取一个参数的函数
+- 如果我们映射函数，如`*`（乘法），它获取两个参数，于一个函子呢？
+- 让我们看几个具体的示例
+- 如果我们有`Just 3`，我们做`fmap (*) (Just 3)`，我们获得什么？
+  - 从Maybe实例对于Functor的实现来说，我们知道如果它是Just某个值，它将会将函数应用到Just里面的某个东西
+  - 因此，做`fmap (*) (Just 3)`结果是`Just ((*) 3)`，也可以写成`Just (* 3)`
+  - 有趣！我们将一个函数包裹在了一个Just里面
+  ``` Haskell
+  ghci> :t fmap (++) (Just "hey")
+  fmap (++) (Just "hey") :: Maybe ([Char] -> [Char])
+  ghci> :t fmap compare (Just 'a')
+  fmap compare (Just 'a') :: Maybe (Char -> Ordering)
+  ghci> :t fmap compare "A LIST OF CHARS"
+  fmap compare "A LIST OF CHARS" :: [Char -> Ordering]
+  ghci> :t fmap (\x y z -> x + y / z) [3,4,5,6]
+  fmap (\x y z -> x + y / z) [3,4,5,6] :: (Fractional a) => [a -> a -> a]
+  ```
+  - 如果我们映射compare，它有类型`(Ord a) => a -> a -> Ordering`对于一列表字符，我们获得一列表函数，类型`Char -> Ordering`
+  - 因为函数compare被部分应用于列表中的字母
+- 我们年看到了通过映射“多参”函数于函子上，我们获得包含有函数的函子
+- 所以现在我们可以对它们做什么？
+  1. 一个，我们可以映射函数，其获取这些函数作为参数，因为函子内的任何东西都会被给到函数，所以我们映射于它，使其作为参数
+     ``` Haskell
+     ghci> let a = fmap (*) [1,2,3,4]
+     ghci> :t a
+     a :: [Interger -> Integer]
+     ghci> fmap (\f -> f 9) a
+     [9,18,27,36]
+     ```
+- 但是如果我们具有`Just (3 *)`的函子，然后一个值为`Just 5`的函子，我们想要从`Just (3 *)`中拿出函数，然后映射到`Just 5`上呢？
+- 使用普通的函子，我们无计可施（we're out of luck）；因为它们所有支持的只是映射普通的函数于已有的函子
+- 我们不能映射一个函子内的函数于另一个函子
+- 我们可以模式匹配于Just构造器来获取函数，然后映射于`Just 5`，但是我们在找一种更加通用且抽象的方式来做这件事，它工作在函子之间
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">开始见识Applicative类型类</div>
+
+</div>
 <h2 id="03774CDA">newtype关键字</h2>
 <h2 id="3E57A703">Monoids</h2>
 </div>
