@@ -3547,6 +3547,58 @@ ghci> (\x y z -> [x,y,z]) <$> (+3) <*> (*2) <*> (/2) $ 5
 </div>
 <div class="sheet-wrap"><div class="sheet-caption">ZipList作为应用函子</div>
 
+
+一个我们还没有遇到的Applicative实例是`ZipList`，它住在`Control.Applicative`中
+- 列表作为应用函子的两种可能
+  - 看来实际上还有办法让列表成为应用函子，一种方式我们已经介绍了，也就是用`<*>`调用一列表的函数和一列表的值，结果是一个列表，其具有将左列表函数应用到右列表值的所有可能组合
+  - 如果我们做`[(+3),(*2)] <*> [1,2]`，`(+3)`将会被应用到1和2,`(*2)`将也会被应用到1和2，结果是一个列表具有4个元素，也就是`[4,5,2,4]`
+  - 然而，`[(+3),(*2)] <*> [1,2]`也可以以这种方式工作，其中左列表第1个函数应用到右列表第一个值，第二个函数应用到第二个值，依次类推
+  - 这可能产生一个带有两个元素的列表，也就是`[4,4]`，你也可以把它看作`[1+3, 2*2]`
+- 因为一种类型不能具有同一类型类的两个实例，`ZipList a`类型被引入了，它具有一个构造器`ZipList`，其只有一个字段，这个字段是一个列表
+  - 这是实例
+    ``` Haskell
+    instance Applicative ZipList where
+      pure x = ZipList (repeat x)
+      ZipList fs <*> ZipList xs = ZipList (zipWith (\f x -> f x) fs xs)
+    ```
+    *这是怎么回事？repeat会产生无穷重复的序列*
+  - `<*>`做了正如我们说的事情，它将第一个函数应用到第一个值，第二个函数应用到第二个值，类推
+    - 这是通过`zipWith (\f x -> f x) fs xs`来做到的
+    - 因为`zipWith`的工作方式，结果列表将会和两列表的较短者一样长
+  - `pure`在这里也很有趣，它获取了一个值，并且将其放置在列表中，并且只是把值复制了无穷次
+    - 这有点令人困惑因为我们说过`pure`应该将值放在一个最小的可产生那个值的上下文中
+      *懂了*
+    - 你可能认为某东西的无穷列表肯定不是最小的（minimal）
+    - 但是它对于zip列表（zip lists）来说很合理，因为它必须在每一个位置产生值
+    - 这也满足了`pure f <*> xs`应该等于`fmap f xs`的规则
+    - 如果`pure 3`只是返回`ZipList [3]`，`pure (*2) <*> ZipList [1,5,10]`结果将会是`ZipList [2]`
+- zip列表如何用应用风格工作呢？我们看看吧
+  - 哦，因为`ZipList a`类型并不具有Show实例，所以我们只能使用`getZipList`函数来从zip列表中提取出原始的列表（a raw list）
+    *现在不是了，目前在ghci上测试可以直接打印*
+    ``` Haskell
+    -- 在ghci中需要使用 :m Control.Applicative 来加载所需的模块（module）
+    ghci> getZipList $ (+) <$> ZipList [1,2,3] <*> ZipList [100,100,100]
+    [101,102,103]
+    -- 直接(+) <$> ZipList [1,2,3] <*> pure 100 也行
+    ghci> getZipList $ (+) <$> ZipList [1,2,3] <*> ZipList [100,100..]
+    [101,102,103]
+    ghci> getZipList $ max <$> ZipList [1,2,3,4,5,3] <*> ZipList [5,3,1,2]
+    [5,3,3,4]
+    ghci> getZipList $ (,,) <$> ZipList "dog" <*> ZipList "cat" <*> ZipList "rat"
+    [('d','c','r'),('o','a','a'),('g','t','t')]
+    -- (,)的作用是把两个元素放进二元组；(,,)的作用是把三个元素放进三元组
+    ```
+
+注意：`(,,)`函数和`\x y z -> (x,y,z)`一样，同样的`(,)`函数和`\x y -> (x,y)`一样
+
+除了`zipWith`，标准库还有这些函数：`zipWith3`、`zipWith4`，一直到7
+- `zipWith`获取一个函数，其获取两个参数，然后用该函数将两列表压缩到一起
+- `zipWith3`获取一个函数，其获取三个参数……类推
+- 通过以应用风格使用zip列表，我们不需要单独针对我们想要压缩到一起的列表的每种个数使用zip函数，我们只需要使用应用风格，用一个函数来压缩任意数量的列表，这太酷了
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Control.Applicative中的liftA2</div>
+
 </div>
 <h2 id="03774CDA">newtype关键字</h2>
 <h2 id="3E57A703">Monoids</h2>
