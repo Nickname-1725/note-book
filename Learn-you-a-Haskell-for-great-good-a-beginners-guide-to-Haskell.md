@@ -3599,6 +3599,109 @@ ghci> (\x y z -> [x,y,z]) <$> (+3) <*> (*2) <*> (/2) $ 5
 </div>
 <div class="sheet-wrap"><div class="sheet-caption">Control.Applicative中的liftA2</div>
 
+
+`Control.Applicative`定义了一个函数，`liftA2`
+- 类型为`liftA2::(Applicative f) => (a -> b -> c) -> f a -> f b -> f c`
+- 定义
+  ``` Haskell
+  liftA2 :: (Applicative f) => (a -> b -> c) -> f a -> f b -> f c
+  liftA2 f a b = f <$> a <*> b
+  ```
+- 没什么特别的，它只是把一个函数应用到了两个函子之间，隐藏了我们熟悉的应用风格
+- 我们看这个的原因是，它清晰地展示了为什么应用函子比普通的函子更加强大
+- 对于普通函子，我们只能对一个函子映射函数
+- 但是对于应用函子，我们可以将一个函数应用到数个函子之间
+
+把这个函数的类型看作`(a -> b -> c) -> (f a -> f b -> f c)`也很有趣
+- 当我们像这样看它，我们可以说`liftA2`拿到一个普通的双参函数并且将其提升为一个操作两个函子的函数
+
+有一个有趣的概念
+- 我们可以拿两个应用函子并且将其组合为一个应用函子，在内部具有两个应用函子的列表作为结果
+- 例如，我们有`Just 3`和`Just 4`，我们假定第二个内部有一个但列表，因为这很容易实现
+  ``` Haskell
+  ghci> fmap (\x -> [x]) (Just 4)
+  Just [4]
+  ```
+- 我们说我们有`Just 3`和`Just [4]`，我们如何获得`Just [3,4]`？简单
+  ``` Haskell
+  ghci> liftA2 (:) (Just 3) (Just [4])
+  Just [3,4]
+  ghci> (:) <$> Just 3 <*> Just [4]
+  Just [3,4]
+  ```
+- 记住，`:`是一个函数，获取一个元素以及一个列表，并且返回一个新列表，带有一开始的元素
+- 既然我们有了`Just [3,4]`，我们可以把它和`Just 2`组合到一起来产生`Just [2,3,4]`吗？当然
+- 似乎我们可以组合任意数量的应用函子，组成一个应用函子，其具有这些应用函子内部的结果的列表
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">sequenceA函数</div>
+
+
+让我们尝试实现一个函数，其获取一列应用函子并且返回一个应用函子，具有一个列表作为它的结果值，我们叫它`sequenceA`
+  ``` Haskell
+  sequenceA :: (Applicative f) => [f a] -> f [a]
+  sequenceA [] = pure []
+  sequenceA (x:xs) = (:) <$> x <*> sequenceA xs
+  ```
+  啊，递归！
+  - 首先，我们看看类型，它将会将一应用函子的列表转换为带有列表的应用函子
+  - 因此，我们可以为边界条件（edge condition）铺垫一些准备工作（groundwork）
+  - 如果我们想把一空列表转换为列表作为结果的函子，我们只需要把空列表放到默认上下文中即可
+  - 现在到了递归
+  - 如果我们具有一个列表，它有头部（head）和尾部（tail）（记住，x是应用函子，而xs是它们的列表），我们对尾部调用`sequenceA`，它结果是带有列表的应用函子，然后，我们只需要把应用函子`x`里的值前追加（prepend）到代列表的应用函子中，完事！
+- 所以如果我们做`sequenceA [Just 1, Just 2]`
+  - 也就是`(:) <$> Just 1 <*> sequenceA [Just 2]`
+  - 就等于`(:) <$> Just 1 <*> ((:) <$> Just 2 <*> sequenceA [])`
+  - 啊！我们知道`sequenceA []`作为`Just []`结束，所以这个表达式现在是`(:) <$> Just 1 <*> ((:) <$> Just 2 <*> Just [])`
+  - 也就是`(:) <$> Just 1 <*> Just [2]`
+  - 就是`Just [1,2]`！
+
+*其实sequanceA已经有了，甚至不限于列表*
+
+另一种实现`sequanceA`的方法是用`fold`
+``` Haskell
+sequenceA :: (Applicative f) => [f a] -> f [a]
+sequenceA = foldr (liftA2 (:)) (pure [])
+```
+- 记住，很多时候任何遍历（go over）逐元素遍历列表以及顺便积累结果的函数都可以用`fold`实现
+- *关于遍历和积累的过程（略）* \
+  *我明白了，实际的sequenceA的类型签名是`sequenceA :: (Traversable t, Applicative f) => t (f a) -> f (t a)`，这里"traversable"指的就是可遍历*
+
+让我们玩一点例子（ *已玩，略* ）
+``` Haskell
+ghci> sequenceA [[1,2,3],[4,5,6]]
+[[1,4],[1,5],[1,6],[2,4],[2,5],[2,6],[3,4],[3,5],[3,6]]
+ghci> sequenceA [[1,2,3],[4,5,6],[3,4,4],[]]
+[]
+-- 关于列表的例子很令人费解，虽然可以用上面的过程推出来
+-- 不过建立的直觉仍然是有趣的
+```
+- *各种例子的分析（略）*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：相同的输入应用到一列函数</div>
+
+
+当我们想要把相同的输入喂到一列函数中，使用`sequenceA`就会很酷
+- 例如，我们有一个数字，想知道它是否符合列表中的所有断言（predicates）
+- 一种方式是可以是这样
+  ``` Haskell
+  ghci> map (\f -> f 7) [(>4),(<10),odd]
+  [True,True,True]
+  ghci> and $ map (\f -> f 7) [(>4),(<10),odd]
+  True
+  ```
+- `sequenceA [(>4),(<10),odd]`创造了一个函数
+  - 将会获取一个数字然后将其喂入`[(>4),(<10),odd]`中所有的断言，然后返回一列布尔值
+  - 他把一个具有`(Num a) => [a -> Bool]`类型的列表转换成具有`(Num a) => a -> [Bool]`类型的函数，很漂亮，是吧？
+- 因为列表是同质的，列表中所有的函数当然都只能是相同类型的函数
+  - 你不能有一个像`[ord,(+3)]`这样的列表，因为`ord`获取一个字符然后返回一个数字
+  - 而`(+3)`获取一个数字并且返回一个数字
+
+当用在`[]`上，`sequenceA`获取一列表列表并且返回一列表列表
+- 它实际上创造了列表元素的所有可能的组合
+-
+
 </div>
 <h2 id="03774CDA">newtype关键字</h2>
 <h2 id="3E57A703">Monoids</h2>
