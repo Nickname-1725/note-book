@@ -67,6 +67,9 @@
   - [重提函子](#379CE627)
   - [应用函子](#EDE43895)
   - [newtype关键字](#03774CDA)
+    - [使用newtype来创造类型类实例](#5A4EA31E)
+    - [关于newtype惰性](#87E25935)
+    - [类型vs.newtype vs. data](#97C34E42)
   - [Monoids](#3E57A703)
 </div>
 
@@ -3762,5 +3765,81 @@ woo
 
 </div>
 <h2 id="03774CDA">newtype关键字</h2>
+<div class="sheet-wrap"><div class="sheet-caption">本节预告</div>
+
+
+目前为止，我们学习了
+- 如何通过`data`关键字制造我们自己的代数数据类型
+- 也学习了如何用`type`关键字给已有的类型赋上同义词
+
+本小节，我们将会看
+- 如何用`newtype`关键字从已有的数据类型制造新的类型
+- 以及从一开始，为什么我们想要这样做
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">回顾如何用两种方式将列表作为应用函子</div>
+
+
+前面的小节，我们看到列表类型实际上有更多方式成为应用函子
+- 一种方式是让`<*>`从左参数的列表中获取每个函数，并且应用到右边列表的每一个值中，返回来自左边列表函数应用到右边列表的值的每一个可能组合
+- 第二种方式是获取`<*>`左边的第一个元素并将其应用到有哦便的第一个值，第二个函数到第二个值，类推。最终，这有点像把两个列表压缩到一起
+- 但是列表已经是Applicative的实例，所以我们怎么让列表以第二种方式作为Applicative的实例的呢？
+- 如果你记得，我们说`ZipList`是一种为此引入的类型，它有一个类型构造器，`ZipList`，只有一个字段。我们把列表包裹在那个字段中
+- 然后`ZipList`被作为了Applicative的一个实例，从而当我们想要把列表以压缩方式作为应用函子的时候，我们只是把它们包裹在`ZipList`构造器里面
+- 然后一旦我们完成，就用`getZipList`把它们的包裹剥掉
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">newtype的用法：包裹住某一类型，把它表示成另一种类型</div>
+
+
+想想可能如何编写`ZipList`类型的data声明
+1. 一种方式可以是
+   ``` Haskell
+   data ZipList a = ZipList [a]
+   ```
+   - 一种类型只有一个类型构造器，那个类型构造器只有一个字段，并且是某些东西的列表
+2. 我们可能也想要使用`record`语法，因此我们自动获取函数，从`ZipList`里面提取出列表
+   ``` Haskell
+   data ZipList a = ZipList { getZipList :: [a] }
+   ```
+- 这看起来很好，我们已经有了两种方式来把一个已有的类型作为一个类型类的实例
+
+*为什么这里自动产生了一个函数`getZipList`？* \
+*这是记录选择器，与record中的“字段”同名，是自动生成的函数*
+
+Haskell里的`newtype`关键字正是为了这些情况的
+- 也就是当我们想要拿到一种类型并且将其包裹在某种东西里面，来把它表示为另一种类型
+- 实际的库中，`ZipList a`像这样定义
+  ``` Haskell
+  newtype ZipList a = ZipList { getZipList :: [a] }
+  ```
+- 没有使用data关键字，而是使用了newtype关键字，为什么？
+  - 一个原因是（for one），`newtype`更快
+    - 如果你使用data关键字来包裹一个类型，你的程序运行时有一些有关包裹和去包裹的开销（overhead）
+    - 但是如果你使用newtype，Haskell知道你只是用它包裹一个已有类型变成一个新的类型（顾名思义）
+    - 因为你想让它内部相同但是具有不同类型
+    - 知道了这个，一旦Haskell解析了那个值是什么类型，它可以去除包裹和解包裹
+- 那为什么不直接总是使用newtype而不是data？
+  - 当你用newtype关键字从已有类型创建一个新类型，你只能有一个值构造器，那个值构造器之后一个字段
+  - 但是用data，你可以制作具有数个值构造器的数据类型，每个构造器可以有另个或更多字段
+- 我们也对newtype使用derving关键字，就如同data一样
+  - 可以把实例派生到Eq、Ord、Enum、Bounded、Show和Read
+  - 如果我们把实例派生到一个类型类，我们包裹的类型必须从一开始也在那个类型类
+  - 这说得通，因为newtype只是包裹了一个已有类型
+- 例子
+  ``` Haskell
+  newtype CharList = CharList { getCharList :: [Char] } deriving (Eq, Show)
+  ```
+  - 在这个特定的newtype中，值构造器具有下列类型
+    ``` Haskell
+    CharList :: [Char] -> CharList
+    ```
+    它获取CharList值并且转换成[Char]值
+  - 你可以把它看成包裹和解包裹，也可以看成把值从一个类型转换为另一种类型
+
+</div>
+<h3 id="5A4EA31E">使用newtype来创造类型类实例</h3>
+<h3 id="87E25935">关于newtype惰性</h3>
+<h3 id="97C34E42">类型vs.newtype vs. data</h3>
 <h2 id="3E57A703">Monoids</h2>
 </div>
