@@ -69,8 +69,13 @@
   - [newtype关键字](#03774CDA)
     - [使用newtype来创造类型类实例](#5A4EA31E)
     - [关于newtype惰性](#87E25935)
-    - [类型vs.newtype vs. data](#97C34E42)
+    - [type vs. newtype vs. data](#97C34E42)
   - [Monoids](#3E57A703)
+    - [列表是幺半群](#4FABC9ED)
+    - [乘和积](#DCD87A48)
+    - [Any和All](#874DF295)
+    - [排序幺半群](#9ECFE9F0)
+    - [Maybe幺半群](#2A67F49F)
 </div>
 
 <div class="main">
@@ -3839,7 +3844,119 @@ Haskell里的`newtype`关键字正是为了这些情况的
 
 </div>
 <h3 id="5A4EA31E">使用newtype来创造类型类实例</h3>
+<div class="sheet-wrap"><div class="sheet-caption">从Maybe作为函子开始</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">想让元组作为函子，并且fmap将函数作用到第一个元素上</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">解决办法：用newtype来“交换”两个类型参数</div>
+
+</div>
 <h3 id="87E25935">关于newtype惰性</h3>
-<h3 id="97C34E42">类型vs.newtype vs. data</h3>
+<div class="sheet-wrap"><div class="sheet-caption">newtype更快更惰性</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">首先说明：Haskell的惰性与undefined</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：data定义的类型与模式匹配</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：newtype定义的类型与模式匹配</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">总结：data和newtype其实是两种机制</div>
+
+</div>
+<h3 id="97C34E42">type vs. newtype vs. data</h3>
+<div class="sheet-wrap"><div class="sheet-caption">type的使用情形：同义词混用</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">newtype的使用情形：包裹已有类型</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">data的使用情形：随心所欲自定义类型</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">总结说明</div>
+
+</div>
 <h2 id="3E57A703">Monoids</h2>
+<div class="sheet-wrap"><div class="sheet-caption">类型类的回顾</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">1对于*、[]对于++的共同特性</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">两种操作另一个共同性：结合性</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Haskell世界里的monoid</div>
+
+
+通过注意到和写下这些特性，我们碰巧发现了幺半群（monoids）
+- 幺半群就是你有一个结合性（associative）的双参函数，以及一个值，它对于那个函数表现为同一（identity）
+- 当某东西对于一个函数表现为同一，它表示当被那个函数和另外某个值一起调用，结果总是等于那个另外值
+- 1对于*是同一、[]对于++是同一
+- Haskell世界中有很多其它的幺半群有待发现，这就是为什么Monoid类型类存在
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Monoid类型类定义以及解释</div>
+
+
+看看类型类如何定义的
+``` Haskell
+class Monoid m where
+  mempty :: m
+  mappend :: m -> m -> m
+  mconcat :: [m] -> m
+  mconcat = foldr mappend mempty
+```
+- Monoid类型类定义在`Data.Monoid`中
+
+让我们花点时间好好熟悉它
+- 我们看到只有具体类型可以作为Monoid的实例，因为类型类定义中的m没有获取任何类型参数
+  - 这和Functor和Applicative有所不同，它要求实例是类型构造器，其获取一个参数
+- 第一个函数是mempty
+  - 它不是一个函数，因为它不获取参数
+  - 它是一个多态常量（polymorphic constant），有点像Bounded里面的minBound
+  - mempty表示对于一个特定的单位值
+- 接下来，我没有mappend
+  - 你可能猜到了，是一个双参函数
+  - 它获取同一类型的两个参数并且返回同为那个类型的值
+  - 值得注意的是我们在用某种方式追加两个东西
+  - 尽管++确实获取两个列表并且将一个追加到另一个上，*并不真的做任何追加，它只是将两个数字乘起来
+  - 当我们遇到Monoid的其它实例时，我们将会看到它们大多数也不会追加值
+  - 所以请不要想象成追加，只要想象mappend是一个双参函数，获取两个幺半群值然后返回第三个
+- 这个类型类定义的最后一个函数是mconcat
+  - 它获取一列幺半群值并且通过在列表元素之间做mappend将它们reduce成单个值
+  - 它有一个默认实现，只是获取mempty作为初始值，然后用mappend从右边折叠列表
+  - 因为默认实现对于绝大多数实例很好，我们从现在开始不会过多地关注mconcat
+  - 当我们让一个类型成为Monoid的一个实例时，只要实现mempty和mappend就足够了
+  - mconcat在这里的原因只是因为，对于某些类型，可能有更加高效的方式实现mconcat
+  - 但是对于大多数实例默认的实现就已经很好了
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">简要看看幺半群规则</div>
+
+
+- 规则的意义：
+  - 有可能创造Monoid实例不遵守规则
+  - 但是这样的实例不再有用，因为当使用Monoid类型类时，我们依靠这个实例像幺半群一样运作
+  - 否则，意义何在？
+- 遵循以下规则
+  1. mempty `mappend` x = x
+  2. x `mappend` mempty = x
+  3. (x `mappend` y) `mappend` z = x `mappend` (y `mappend` z)
+  - 前两个是说mempty必须对于mappend表现为identity
+  - 第三个说mappend必须要是结合性的，因此我们将数个幺半群值reduce为一个值时使用的mappend顺序并不重要
+  - Haskell不会强行保证这些规则，所以我们作为程序员需要小心我们的实例确实遵循它们
+
+</div>
+<h3 id="4FABC9ED">列表是幺半群</h3>
+<h3 id="DCD87A48">乘和积</h3>
+<h3 id="874DF295">Any和All</h3>
+<h3 id="9ECFE9F0">排序幺半群</h3>
+<h3 id="2A67F49F">Maybe幺半群</h3>
 </div>
