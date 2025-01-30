@@ -76,6 +76,7 @@
     - [Any和All](#874DF295)
     - [排序幺半群](#9ECFE9F0)
     - [Maybe幺半群](#2A67F49F)
+    - [使用幺半群折叠数据结构](#43521602)
 </div>
 
 <div class="main">
@@ -3955,8 +3956,245 @@ class Monoid m where
 
 </div>
 <h3 id="4FABC9ED">列表是幺半群</h3>
+<div class="sheet-wrap"><div class="sheet-caption">实例定义</div>
+
+
+是的，列表是幺半群
+- 我们看到了，++函数和空列表[]组成了一个幺半群
+- 实例非常简单
+  ``` Haskell
+  instance Monoid [a] where
+    mempty = []
+    mappend = (++)
+  ```
+- 列表是Monoid类型类，无论它们包含的元素类型
+- 注意我们写的`instance Monoid [a]`而不是`instance Monoid []`，因为Monoid对于一个实例要求一个具体类型
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">测试</div>
+
+
+*略*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">性质</div>
+
+
+幺半群规则确实对于列表实例成立
+- 当我们有数个列表，我们把它们mappend（或者++）在一起，我们先做哪个并不影响，因为它们最终都会结合到一起
+- 同样的空列表表现为幺元（identity），所以一切都很好
+- 注意幺半群不要求``a `mappend` b``等于``b `mappend` a``
+- 乘法`3 * 5`等于`5 * 3`只是乘法的性质，它并不对所有的（实际上，大多数）幺半群成立
+
+</div>
 <h3 id="DCD87A48">乘和积</h3>
+<div class="sheet-wrap"><div class="sheet-caption">有两种方式让数字变成幺半群</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Data.Monoid模块</div>
+
+
+Data.Monoid模块导出两种类型，也就是Product和Sum
+- Product定义为这样
+  ``` Haskell
+  newtype Product a = Product { getProduct :: a }
+    deriving (Eq, Ord, Read, Show, Bounded)
+  ```
+  - 简单，单个类型参数的newtype包裹器，一些派生的实例
+  - 这个Monoid的实例有点像这样
+    ``` Haskell
+    instance Num a => Monoid (Product a) where
+      mempty = Product 1
+      Product x `mappend` Product y = Product (x * y)
+    ```
+  - 为了将`Pruduct a`作为一个幺半群使用，我们必须做一些newtype包裹和去包裹
+    ``` Haskell
+    ghci> getProduct $ Product 3 `mappend` Product 9
+    27
+    ghci> getProduct $ Product 3 `mappend` mempty
+    3
+    ghci> getProduct $ Product 3 `mappend` Product 4 `mappend` Product 2
+    24
+    ghci> getProduct . mconcat . map Product $ [3,4,2]
+    24
+    ```
+  - 这是Monoid类型类的一个很好的示例，但是没有人在头脑清醒的情况下会用这种方式求数字的积，而是应该写`3 * 9`和`3 * 1`
+  - 但是稍后，我们会看到这些看起来可能很简单的Monoid类型类可以变得方便
+- Sum定义得像是Product，实例也是相似
+  - 我们用相同的方式使用
+    ``` Haskell
+    ghci> getSum $ Sum 2 `mappend` Sum 9
+    11
+    ghci> getSum $ mempty `mappend` Sum 3
+    3
+    ghci> getSum . mconcat . map Sum $ [1,2,3]
+    6
+    ```
+
+</div>
 <h3 id="874DF295">Any和All</h3>
+<div class="sheet-wrap"><div class="sheet-caption">布尔作为幺半群的两种方式</div>
+
+
+另一种可以以两种截然不同，但同样可行方式表现为幺半群的类型，就是Bool
+- 第一种方式是让or函数表现为双参函数，让False表现为幺元
+  - or在逻辑中工作的方式是…… *略*
+  - Any的newtype构造器是Monoid的一个实例，定义为
+    ``` Haskell
+    newtype Any = Any { getAny :: Bool }
+      dering (Eq, Ord, Read, Show, Bounded)
+    ```
+  - 这个实例看起来这样
+    ``` Haskell
+    instance Monoid Any where
+      mempty = Any False
+      Any x `mappend` Any y = Any (x || y)
+    ```
+  - 它叫作Any的理由是，如果两个之中任何一个为真，``x `mappend` y``将会为真，即使是三个或者更多的Any包裹的Bool被mappend在一起，结果仍然会在任何一个值为真的时候保持为真
+    ``` Haskell
+    ghci> getAny $ Any True `mappend` Any False
+    True
+    ghci> getAny $ mempty `mappend` Any True
+    True
+    ghci> getAny . mconcat . map Any $ [False, False, False, True]
+    True
+    ghci> getAny $ mempty `mappend` mempty
+    False
+    ```
+- Bool作为Monoid实例的另一种方式是反过来，让&&作为双参函数，并且让True作为幺元
+  - 只有两个参数都为True，逻辑才会返回True
+  - 这是newtype声明，没什么神奇的
+    ``` Haskell
+    newtype All = All { getAll :: Bool }
+      deriving (Eq, Ord, Read, Show, Bounded)
+    ```
+  - 这是实例
+    ``` Haskell
+    instance Monoid All where
+      mempty = All True
+      All x `mappend` All y = All (x && y)
+    ```
+  - 当我们All类型所有的值都mappend之后，结果为True仅当所有在mappend操作中使用的值都为True
+    ``` Haskell
+    ghci> getAll $ mempty `mappend` All True
+    True
+    ghci> getAll $ mempty `mappend` All False
+    False
+    ghci> getAll . mconcat . map All $ [True, True, True]
+    True
+    ghci> getAll . mconcat . map All $ [True, True, False]
+    False
+    ```
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">小结</div>
+
+
+- 正如乘法和加法，我们通常显式地声明双参函数，而不是将它们包裹在newtype里面然后用mappend和mempty
+- mconcat看起来对Any和All有用，但是通常使用or和and函数更简单，它获取Bool列表，然后返回True，分别当它们任何（any）一个为True或者它们所有（all）为True
+
+</div>
 <h3 id="9ECFE9F0">排序幺半群</h3>
+<div class="sheet-wrap"><div class="sheet-caption">回顾Ordering类型</div>
+
+
+回顾Ordering类型
+- Ordering类型用于当比较事物时的结果
+- 它可以有三个值
+  1. LT
+  2. EQ
+  3. GT
+  ``` Haskell
+  ghci> 1 `compare` 2
+  LT
+  ghci> 2 `compare` 2
+  EQ
+  ghci> 3 `compare` 2
+  ```
+- 对于列表、数字和布尔值，发现幺半群只是在于观察已经存在的通常使用的函数，然后看它们是否表现出某种幺半群行为
+- 对于Ordering，我们必须看得更加认真一点来发现一个幺半群，但是最终表明它的Monoid实例和我们目前为止看到的一样符合直觉，并且非常有用
+  ``` Haskell
+  instance Monoid Ordering where
+    mempty = EQ
+    LT `mappend` _ = LT
+    EQ `mappend` y = y
+    GT `mappend` _ = GT
+  ```
+- 这个实例被设定像这样
+  - 当我们mappend两个Ordering值，左边的被保留
+  - 除非左边的值是EQ，情况下右边的值是结果
+- 一开始，这个可能看起来有点随意，但是它实际上类似于（resemble）我们按字母顺序比较单词
+  - 我们比较最开始的两个字母，如果它们不同，我们已经可以决定哪个单词排在字典的前面
+  - 然而，如果最开始的两个字母相等，我们继续比较下一对字母并且重复过程
+  - 例如，如果我们要字典序比较"ox"和"on"…… \
+    *略*
+- 需要注意Ordering的Monoid实例中，``x `mappend` y``不等于``y `mappend` x``
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：字符串先比较长度后字典序</div>
+
+
+我们假设
+- 你在编写一个函数获取两个字符串，比较长度返回Ordering
+- 但是如果字符串长度相同，并不直接返回EQ，我们想要字典序比较它们
+
+一种实现方式
+``` Haskell
+lengthCompare :: String -> String -> Ordering
+lengthCompare x y = let a = length x `compare` length y
+                        n = x `compare` y
+                    in if a == EQ then b else a
+```
+- 我们命名比较长度的结果为a，字典序比较的结果为b，然后看长度是否相等，我们返回字典序
+
+但是通过利用我们对Ordering作为幺半群的理解，我们将函数重写为这种更简单的形式
+``` Haskell
+import Data.Monoid
+
+lengthCompare :: String -> String -> Ordering
+lengthCompare x y = (length x `compare` length y) `mappend`
+                    (x `compare` y)
+```
+- 我们可以试试这个
+  ``` Haskell
+  ghci> lengthCompare "zen" "ants"
+  LT
+  ghci> lengthCompare "zen" "ant"
+  GT
+  ```
+- 记住，当我们使用mapoend，左边的值永远保留，除非它是EQ，这种情况下右边的被保留
+- 这就是为什么我们把更重要的标准放在左边的参数
+- 如果我们想要扩展这个函数，让其也比较元音（vowel）个数，然后把它设置为第二重要的标准，我们只需要像这样修改
+  ``` Haskell
+  import Data.Monoid
+
+  lengthCompare :: String -> String -> Ordering
+  lengthCompare x y = (length x `compare` length y) `mappend`
+                      (vowels x `compare` vowels y) `mappend`
+                      (x `compare` y)
+    where vowvels = length . filter (`elem` "aeiou")
+  ```
+- 我们创建了一个帮助函数，它获取字符串并且告诉我们有几个元音，首先通过滤出"aeiou"中的字符，然后对其应用length
+- 示例
+  ``` Haskell
+  ghci> lengthCompare "zen" "anna"
+  LT
+  ghci> lengthCompare "zen" "ana"
+  LT
+  ghci> lengthCompare "zen" "ann"
+  GT
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">小结</div>
+
+
+Ordering幺半群非常酷
+- 因为它允许我们很容易地通过许多不同的标准比较东西
+- 然后把这些标准本身排顺序，从最重要的到最不重要的
+
+</div>
 <h3 id="2A67F49F">Maybe幺半群</h3>
+<h3 id="43521602">使用幺半群折叠数据结构</h3>
 </div>
