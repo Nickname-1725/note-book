@@ -77,6 +77,7 @@
     - [排序幺半群](#9ECFE9F0)
     - [Maybe幺半群](#2A67F49F)
     - [使用幺半群折叠数据结构](#43521602)
+- [一把Monad](#3A9E3C0F)
 </div>
 
 <div class="main">
@@ -4197,4 +4198,144 @@ Ordering幺半群非常酷
 </div>
 <h3 id="2A67F49F">Maybe幺半群</h3>
 <h3 id="43521602">使用幺半群折叠数据结构</h3>
+<div class="sheet-wrap"><div class="sheet-caption">概述：借助幺半群定义fold函数</div>
+
+
+- 还有一种更有趣的，让幺半群工作的方式，就是让它们帮助我们对不同的数据结构定义fold
+- 目前为止，我们只是对列表做了fold，但是列表也不是唯一可以折叠的数据结构
+- 我们可以在几乎任何数据结构上定义fold
+- Tree尤其适合折叠（Trees especially lend themselves well to folding）
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Foldable类型类</div>
+
+
+因为这么多数据结构很适合折叠，引入了Foldable类型类
+- 很类似于Functior是可以被映射于的东西，Foldable是可以被折叠的东西
+- 它可以在Data.Foldable中被发现，因为它导出的函数的名称和Prelude中的名称冲突，最好有限导入（imported qualified）
+  ``` Haskell
+  import qualified Foldable as F
+  ```
+- 为了省得我们键盘敲击，我们选择把它有限导入为F
+- 好的，所以这个类型类的某些函数的定义是什么？是，foldr、foldl、foldr1、foldl1
+- 我们已经知道了这些函数，有什么新奇的吗？
+- 让我们比较Foldable的foldr和Prelude的foldr的类型，来看它们如何不同
+  ``` Haskell
+  ghci> :t foldr
+  foldr :: (a -> b -> b) -> b -> [a] -> b
+  ghci> :t F.foldr
+  F.foldr :: (F.Foldable t) => (a -> b -> b) -> b -> t a -> b
+  ```
+  - Data.Foldable的foldr接受任何可以被折叠的类型，不只是列表！
+  - 如你所期望的，两种foldr函数对列表做同样的事情
+- 其它哪些数据结构支持fold？
+  - 有Maybe
+    ``` Haskell
+    ghci> F.foldl (+) 2 (Just 9)
+    11
+    ghci> F.foldl (||) False (Just True)
+    True
+    ```
+  - 但是折叠Maybe值非常不有趣，因为当它折叠时，如果它是Just值它只是表现为只有一个元素的列表；如果它是Nothing值，它表现为空列表
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">树作为Foldable</div>
+
+
+还记得“创造我们自己的类型年和类型类”章节里面的树数据结构吗？
+- 定义
+  ``` Haskell
+  data Tree a = Empty | Node a (Tree a) (Tree a) derving (Show, Read, Eq)
+  ```
+- 我们说一个树要么是不包含任何值的空树，要么是一个包含一个值以及另外两个树的节点
+- 通过定义，我们将其作为了Functor的一个实例，并且借此我们获得了对其fmap的能力
+- 现在，我们幺让它作为Foldable的一个实例，因此我们可以获得将其折叠的能力
+- 一种让类型构造器变成Foldable的一个实例的方式就是直接帮它实现foldr
+- 但是另一种简单得多的方式，就是实现foldMap函数，它也是Foldable类型类的一部分
+- foldMap函数具有下列类型
+  ``` Haskell
+  foldMap :: (Monoid m, Foldable t) => (a -> m) -> t a -> m
+  ```
+  - 它的第一个参数是一个函数，获取我们可折叠结构包含的类型的类型的值（这里记为a），然后返回一个幺半群值
+  - 它的第二个参数是一个可折叠结构，包含类型a的一个值
+  - 它将函数映射于可折叠结构，从而产生一个包含哪个幺半群值的可折叠结构
+  - 然后，通过在这些幺半群值之间做mappend，它将它们都结合为单个幺半群值
+- 函数可能现在听起来有点奇怪，但是我们会看到它非常容易实现
+- 另一个很酷的事情是，我们的类型成为Foldable实例唯一需要的就是实现这个函数
+- 所以如果我们为某类型实现了foldMap，我们免费获得了那个类型的foldr和foldl！
+
+让Tree作为Foldable的一个实例
+``` Haskell
+instance F.Foldable Tree where
+  foldMap f Empty = mempty
+  foldMap f (Node x l r) = F.foldMap f l `mappend`
+                           f x           `mappend`
+                           F.foldMap f r
+```
+- 我们像这样再想想
+  - 如果提供我们一个函数，从我们的树中获得一个元素并且返回一个幺半群值，我们如何把我们的整个树reduce成单个幺半群值呢？
+  - 当我们对我们的树做fmap时，我们应用了一个函数，将其映射于节点然后我们递归地将函数映射于左子树和右子树
+  - 这里，我们的任务不仅是映射一个函数，还有通过mappend将结果结合为单个幺半群值
+- 首先我们考虑空树的情况——一个忧郁且孤独的树，没有值也没有子树
+  - 它不包含任何我们可以给我们的幺半群制造函数的值，所以我们只能说我们的树是空的
+  - 它变成的幺半群值是mempty
+- 非空节点的情况稍微更加有趣
+  - 它包含了两个子树和一个值
+  - 这种情况下，我们递归地将相同的函数f给foldMap到左右子树
+  - 记住，我们的foldMap结果是单个幺半群值
+  - 我们也将我们的函数f应用到节点的值
+  - 现在我们有三个幺半群值，我们必须把他们整合成一个值
+  - 出于我们使用mappend的目的，自然地左子树先来，然后是节点值，接着是右子树
+- 注意我们不需要提供获取值并且返回幺半群值的函数，我们将那个函数作为foldMap的参数接收，我们所有需要决定的事情就是在哪里应用那个函数，以及如何将来自它的结果幺半群结合起来
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：将树折叠</div>
+
+
+考虑这个树
+``` Haskell
+testTree = Node 5
+             (Node 3
+               (Node 1 Empty Empty)
+               (Node 6 Empty Empty)
+             )
+             (Node 9
+               (Node 8 Empty Empty)
+               (Node 10 Empty Empty)
+             )
+```
+
+我们可以做任何对列表做的折叠 \
+*这里为什么没有转换幺半群值和类型呢？* \
+*有可能是先转换成列表实现的*
+``` Haskell
+ghci> F.foldl (+) 0 testTree
+42
+ghci> F.foldl (*) 1 testTree
+648800
+```
+- 同样地，foldMap不仅仅创建Foldable的新实例有用，它也对于把我们的结构reduce成单个幺半群值很方便
+- 例如，我们想要知道我们树的任何值等于3,我们可以做：
+  ``` Haskell
+  ghci> getAny $ F.foldMap (\x -> Any $ x == 3) testTree
+  True
+  ```
+- 这里，`\x -> Any $ x == 3`是一个函数，其获取一个数字然后返回一个幺半群值，也就是一个Bool包裹在Any里面；foldMap将这个函数应用到我们的树中的每一个元素然后用mappend将结果幺半群reduce到一个简单的幺半群
+- 如果我们这样做
+  ``` Haskell
+  ghci> getAny $ F.foldMap (\x -> Any $ x > 15) testTree
+  False
+  ```
+  我们树中所有的节点将会在lambda中的函数应用到它们之后保留Any False值
+- 通过foldMap和`\x -> [x]`函数，我们也可以很容易地将我们的树变成列表
+  ``` Haskell
+  ghci> F.foldMap (\x -> [x]) testTree
+  [1,3,6,5,8,9,10]
+  ```
+
+酷的是，这些伎俩不限于树，它们同样适用任何Foldable的实例
+
+</div>
+<h1 id="3A9E3C0F">一把Monad</h1>
 </div>
