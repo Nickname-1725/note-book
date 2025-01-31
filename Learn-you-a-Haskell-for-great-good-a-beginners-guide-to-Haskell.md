@@ -4502,6 +4502,74 @@ Monad是应用函子的自然延伸，通过它们，我们关注这个
 
 </div>
 <h2 id="80D10FAC">Monad类型类</h2>
+<div class="sheet-wrap"><div class="sheet-caption">Monad类型类</div>
+
+
+正如函子有Functor类型类，应用函子有Applicative类型类，单子也有它们自己的类型类Monad
+``` Haskell
+class Monad m where
+  return :: a -> m a
+
+  (>>=) :: m a -> (a -> m b) -> m b
+
+  (>>) :: m a -> m b -> m b
+  x >> y = x >>= \_ -> y
+
+  fail :: String -> m a
+  fail msg = error msg
+```
+- 从第一行开始，它说`class Monad m where`
+  - 等一下，为什么我们说单子是增强版应用函子？不应该有类型约束`class (Applicative m ) => Monad m where`，这样一个类型必须是应用函子才能是单子？
+  - 应该如此，但是当Haskell被创造的时候，人们并没有想到应用函子很适合Haskell，所以没有它们
+  - 不过请放心（rest assured），每一个单子都是一个应用函子，即使Monad类声明没这样说
+- Monad类型类定义的第一个函数是return
+  - 它和pure一样，只是有一个不同的名字
+  - 它的类型是`(Monad m) => a -> m a`，它获取一个值然后把它放到保留该值的最小默认上下文中
+  - 换句话说，它获取某些东西然后把它包裹在一个单子中
+  - 它总是和Applicative类型类里的pure函数做同样的事情
+  - 这也表示我们已经认识return了，我们在做I/O的时候就已经用过return了
+  - 对于Maybe它获取一个值然后包裹在Just中
+  *注意：return不像其它多数语言中的return，它并不结束函数执行或者任何东西，它只是获取一个普通的值然后把它放在上下文中*
+- 下一个函数是`>>=`，或者绑定（bind）
+  - 它像函数应用，只是并非获取普通值然后喂入普通函数，它获取一个单子值然后喂入一个获取普通值、返回单子值的函数
+- 下一个，我们有`>>`
+  - 我们现在不太关注它，因为有一个默认实现，我们很大程度不会在创造Monad实例时实现它
+- Monad类型类的最后一个函数是fail
+  - 我们从不在我们的代码中显式使用它
+  - 相反，它通常被Haskell使用，来使单子特定的语法构造中的失败可以发生，我们之后会遇到
+  - 我们现在不需要太过担心fail
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Maybe作为Monad的实例</div>
+
+
+既然我们知道Monad类型类的样子，现在让我们看看Maybe如何作为Monad的一个实例！
+``` Haskell
+instance Monad Maybe where
+  return x = Just x
+  Nothing >>= f = Nothing
+  Just x >>= f = f x
+  fail _ = Nothing
+```
+- return和pure一样，所以完全不用想
+- >>=函数和我们的applyMaybe函数一样
+  - 当把Maybe喂入我们的函数，我们记住上下文
+  - 如果左边的值是Nothing，就返回Nothing，因为如果没有值，也就没有办法把我们的函数应用于它
+  - 如果它是Just，我们获取它内部的东西然后把f应用于它
+- 我们可以把Maybe作为单子玩一玩
+  ``` Haskell
+  ghci> return "WHAT" :: Maybe String
+  Just "WHAT"
+  ghci> Just 9 >= \x -> return (x * 10)
+  Just 90
+  ghci> Nothing >>= \x -> return (x * 10)
+  Nothing
+  ```
+- 注意我们如何把`Just 9`喂入函数`\x -> return (x*10)`，函数里面的`x`获取值9
+  - 看起来好像我们能够不通过模式匹配就能从Maybe中提取出值
+  - 我们仍然没有失去我们Maybe值的上下文，因为当它是Nothing，使用`>>=`的结果将也会是Nothing
+
+</div>
 <h2 id="27023EE8">走钢丝</h2>
 <h2 id="8EEAB382">do记号</h2>
 <h2 id="E9D07A32">列表单子</h2>
