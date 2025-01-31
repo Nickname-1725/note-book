@@ -4411,6 +4411,96 @@ Monad是应用函子的自然延伸，通过它们，我们关注这个
 
 </div>
 <h2 id="D368BDC2">用Maybe湿湿鞋</h2>
+<div class="sheet-wrap"><div class="sheet-caption">让我们用Maybe探索</div>
+
+
+- 既然我们关于monad有了模糊的想法，，让我们看看我们能否让这个想法清晰一点
+- 很可能你不太吃惊，Maybe也是单子，让我们更进一步探索我嫩是否可以把它和我们关于单子的所知组合起来
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">注意：确保理解应用函子</div>
+
+
+注意：确保你现在理解应用函子
+- 如果你对不同的Applicative示例如何工作有一定的认识，并且它们代表何种计算，那很好
+- 因为单子只不过是了解我们已有的应用函子知识并且升级它
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Maybe及其作为函子、应用函子</div>
+
+
+- `Maybe a`的值代表类型`a`的值，带有可能失败的上下文
+
+当我们把Maybe看作函子
+- 我们看到如果我们想要将一个函数fmap于它
+  - 如果它是Just值，它被映射于内部
+  - 否则只留下Nothing，因为没有什么东西可以被映射于
+- 例子 \
+  *略*
+
+作为一个应用函子，它功能类似
+- 但是，应用函子也让函数被包裹
+- Maybe是一个这样的应用函子
+  - 当我们用`<*>`在`Maybe`内部将一个函数应用于一个值
+  - 它们都得是Just值，结果才是Just值
+  - 否则，结果是Nothing
+- 这有意义，因为如果你丢失函数或者被应用于的东西，你不能凭空产生任何东西，所以你只能传播失败 \
+  *例子略*
+- 当我们使用应用风格来让普通的函数对Maybe值其作用，类似，所有的值必须是Just值，否则全都是Nothing！ \
+  *例子略*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">如何给Maybe实现>>=</div>
+
+
+让我们思考我们如何给Maybe做`>>=`
+- 如我们所说
+  - `>>=`获取一个单子值，一个获取普通值的函数，然后返回一个单子值
+  - 尝试把那个函数应用于获取的单子值
+- 如果函数获取普通值，那它怎么做到的呢
+- 为了做到这个，它必须考虑单子值的上下文
+  - 在这个例子中，`>=`会获取`Maybe a`值，以及一个类型`a -> Maybe b`的函数，并且以某种方式把函数应用于`Maybe a`
+  - 为了弄明白这个，我们可以使用Maybe作为应用函子的直觉
+  - 我们假定我们有函数`\x -> Just (x+1)`，它获取一个数字，加1，然后把它包裹在Just中
+  - 现在就是提示了，我们如何把一个Maybe值喂到这个函数中？
+  - 如果我们考虑Maybe作为应用函子，答案很简单
+    - 如果我们喂入一个Just值，获取Just内部的东西然后把函数应用于它
+    - 如果给它Nothing，那就做我们之前做的事情，说结果是Nothing
+- 不称其`>>=`，我们现在可以称其`applyMaybe`，它获取一个`Maybe a`以及一个返回`Maybe b`的函数，并且试图把函数应用于`Maybe a`
+  ``` Haskell
+  applyMaybe :: Maybe a -> (a -> Maybe b) -> Maybe b
+  applyMaybe Nothing f = Nothing
+  applyMaybe (Just x) f = f x
+  ```
+  - 现在让我们玩会，我们要把它用作中缀函数，Maybe值在左边，函数在右边 \
+    *代码略*
+  - 上面的实例中，我们看到
+    - 当我们对一个Just值和一个函数使用`applyMaybe`，函数只是应用于Just内部的值
+    - 当我们尝试拿Nothing来用它，整个结果是Nothing
+  - 那如果函数返回Nothing呢？我们看
+    ``` Haskell
+    ghci> Just 3 `applyMaybe` \x -> if x > 2 then Just x else Nothing
+    Just 3
+    ghci> Just 1 `applyMaybe` \x -> if x > 2 then Just x else Nothing
+    Nothing
+    ```
+  - 正如我们所期望的
+- 看起来对于Maybe，我们搞清楚了如何获取奇异的值然后把它喂入一个获取普通值并返回奇异的值的函数
+- 我们通过记住Maybe值表示一个可能失败的计算来做到这一点
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Monad比Applicative更加强大</div>
+
+
+你可能会问，这怎么有用？
+- 可能看起来应用函子比单子更强大，因为应用函子允许我们拿普通的函数并且让它操作带有上下文的值
+- 我们会看到单子也可以做到，因为它们是升级版应用函子
+- 并且单子也可以做应用函子做不到的酷事
+
+我们稍后会回到Maybe，但是首先，让我们看看单子属于的类型类
+
+</div>
 <h2 id="80D10FAC">Monad类型类</h2>
 <h2 id="27023EE8">走钢丝</h2>
 <h2 id="8EEAB382">do记号</h2>
