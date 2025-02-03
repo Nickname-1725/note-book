@@ -4743,5 +4743,85 @@ sevenOnly = do
 
 </div>
 <h3 id="012FB568">骑士的委托</h3>
+<div class="sheet-wrap"><div class="sheet-caption">问题介绍</div>
+
+
+有一个问题确实很适合用非确定性解决（really lends itself to being solved with non-determinism）。
+- 假如你有一个棋盘，只有一个马（knight）在上面
+- 我们想要知道马能否在三步到达特定的位置
+- 我们将会使用数对来代表马在棋盘上的位置
+- 第一个数字将会决定他所在的列，第二个数字将会决定行
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">解决</div>
+
+
+我们创造马当前在棋盘上位置的类型同义词
+``` Haskell
+type KnightPos = (Int,Int)
+```
+
+假如说马从`(6,2)`开始，我们能否恰好三步到达`(6,1)`
+- 如果我们从`(6,2)`开始，下一步最好的一着是哪里？我知道，所有的点如何！
+- 我们已经处理了非确定性，所以不用选取一着，让我们一次性选全部的位置
+- 这是一个函数获取马现在的位置返回下一步
+  ``` Haskell
+  moveKnight :: KightPos -> [KnightPos]
+  moveKnight (c,r) = do
+    (c',r') <- [(c+2,r-1),(c+2,r+1),(c-2,r-1),(c-2,r+1)
+               ,(c+1,r-2),(c+1,r+2),(c-1,r-2),(c-1,r+2)
+               ]
+    guard (c' `elem` [1..8] && r' `elem` [1..8])
+    return (c',r')
+  ```
+- *解释略*
+- 这个函数也可以不用列表单子写出，但是我们在这里作为提示，这是用filter做的同样的函数
+  ``` Haskell
+  moveKnight :: KnightPos -> [KnightPos]
+  moveKnight (c,r) = filter onBoard
+    [(c+2,r-1),(c+2,r+1),(c-2,r-1),(c-2,r+1)
+    ,(c+1,r-2),(c+1,r+2),(c-1,r-2),(c-1,r+2)
+    ]
+    where onBoard (c,r) = C `elem` [1..8] && r `elem` [1..8]
+  ```
+- 这些都做相同的事情，所以挑一样你觉得好看的
+- 让我们试试 \
+  *测试代码略*
+- 现在既然我们已经有了不确定的下一步位置，我们只要用`>>=`来把它喂入moveKnight，这是一个函数获取位置，然后返回你三步可以到达的位置
+  ``` Haskell
+  in3 :: KnightPos -> [KnightPos]
+  in3 start = do
+    first <- moveKnight start
+    second <- moveKnight first
+    moveKnight second
+  ```
+- 如果你传入`(6,2)`，结果列表很大，因为如果有数种方式用三步到达一个点，它让列表结果数倍扩大
+- 上面不用do记号
+  ``` Haskell
+  in3 start = return start >>= moveKnight >>= moveKnight >>= moveKnight
+  ```
+  - 通过应用return来将一个值放入默认上下文然后用>>=把它喂入一个函数，就跟正常把函数应用于值一样，但是我们这里这样做就是为了风格
+- 现在，让我们只做一个函数，它获取两个位置然后告诉我们你能否从一个经过正好三步到达另一个位置
+  ``` Haskell
+  canReachIn3 :: KnightPos -> KnightPos -> Bool
+  canReachIn3 start end = end `elem` in3 start
+  ```
+- 我们生成了三步所有可能的位置，然后我们看我们要找的位置是否在其中
+- 测试
+  - 让我们看看能否从`(6,2)`三步到达`(6,1)`
+    ``` Haskell
+    ghci> (6,2) `canReachIn3` (6,1)
+    True
+    ```
+  - 让我们看看从`(6,2)`到`(7,3)`
+    ``` Haskell
+    ghci> (6,2) `canReachIn3` (7,3)
+    False
+    ```
+
+- 作为练习，你可以改变这个函数，当你能从一个位置到达另一个位置，它告诉你走哪几步
+- 后续，我们将会看到如何修改这个函数，让我们也可以传入步数，而不是将那个值像现在这样硬编码
+
+</div>
 <h2 id="8168599C">Monad规则</h2>
 </div>
