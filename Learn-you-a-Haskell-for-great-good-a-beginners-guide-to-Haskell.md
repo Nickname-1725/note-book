@@ -85,6 +85,10 @@
   - [列表单子](#E9D07A32)
     - [骑士的委托](#012FB568)
   - [Monad规则](#8168599C)
+    - [左幺元](#FA1CCE2A)
+    - [右幺元](#D13AC8B8)
+    - [结合性](#5CF9C9B3)
+- [再来几个单子](#220C0724)
 </div>
 
 <div class="main">
@@ -4824,4 +4828,110 @@ type KnightPos = (Int,Int)
 
 </div>
 <h2 id="8168599C">Monad规则</h2>
+<div class="sheet-wrap"><div class="sheet-caption">本节介绍</div>
+
+
+就如同应用函子，以及之前的函子，单子也有一些规则，所有的单子实例必须遵守
+- 因为某个东西成为Monad类型类，并不意味着它就是单子，它值是表示它被做成类型类的实例
+- 对于一个确实是单子的类型，单子规则必须对那个类型成立
+- 这些规则允许我们对类型和它的行为做一些有道理的假设
+
+Haskell允许任何类型作为任何类型类的实例，只要类型检查通过
+- 它不能检查单子规则是否对于一个类型成立
+- 所以如果我们做创造Monad类型类的一个新实例，我们必须相当清楚那个类型的单子规则全都没事（all is well with）
+- 我们可以指望来自标准库的类型满足这些规则，但是随后当我们开始创造我们自己的单子时，我们将要手动检查规则是否成立
+- 但是不要担心，它们并不困难
+
+</div>
+<h3 id="FA1CCE2A">左幺元</h3>
+<div class="sheet-wrap"><div class="sheet-caption">规则描述</div>
+
+
+第一个单子规则说
+- 如果我们获取一个值，用return把它放到一个默认的上下文
+- 然后用`>>=`把它喂入一个函数，就可获取值然后把函数应用于它一样
+
+正式地说`return x >>= f`和`f x`一样
+- 如果你把单子值看作带有上下文的值，并且做获取一个值并且把它放到默认最小上下文然后返回仍然将那个值表示为结果
+- 这说得通，因为如果那个上下文真的是最小的，将这个函子值喂入函数不应该和把函数应用到普通值不一样
+- 实际上也根本不会不一样
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Maybe单子的例子</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">list单子的例子</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">IO单子的例子</div>
+
+</div>
+<h3 id="D13AC8B8">右幺元</h3>
+<div class="sheet-wrap"><div class="sheet-caption">规则描述</div>
+
+
+第二个规则说
+- 如果我们有单子值，然后我们使用`>>=`来把它喂入`return`
+- 结果就是我们最开始的单子值
+
+正式地说
+- `m >>= return`和就是`m`没有区别
+
+这一点比第一个稍微不那么明显，但是让我们看看为什么它应该成立
+- 当我们把单子值通过使用`>>=`喂入函数，这些函数获取普通的值，并且返回单子值
+- `return`也是这样一个函数，如果你考虑它的类型
+- 正如我们说的，`return`把一个类型放到最小上下文，并且仍然把那个值作为它的结果
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">一些例子</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">对左幺元和右幺元的总结</div>
+
+
+左幺元和右幺元都是描述`return`应该如何行为的基本规则
+- 这是一个重要的把普通值做到单子值的函数
+- 如果它产生的单子值做了很多其它的事情，它就不会好
+
+</div>
+<h3 id="5CF9C9B3">结合性</h3>
+<div class="sheet-wrap"><div class="sheet-caption">规则描述</div>
+
+
+最后一条单子规则说
+- 当我们有一链带`>>=`的单子函数应用
+- 它们如何嵌套都不会有影响
+
+正式地说
+- `(m >> f) >>= g`就和`m >>= (\x -> f x >>= g)`一样
+
+这里发生了什么
+- 我们有一个单子值，`m`，还有两个单子函数`f`和`g`
+- 当我们做`(m >>= f) >>= g`
+  - 我们在将`m`喂入`f`，它的结果是一个单子值
+  - 随后，我们把那个单子值为如`g`
+- 在表达式`m >>= (\x -> f x >>= g)`中
+  - 我们获取一个单子值，然后把它喂入一个函数，它把`f x`的结果喂入`g`
+- 不太容易看这两个是否相等，所以让我们看一看一个例子
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">走钢丝的例子</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">另一种看待这个规则的方式：函数组合</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">本章小结</div>
+
+
+本章，我们
+- 看了单子的基础
+- 学习了Maybe单子、list单子如何工作
+
+接下来的章节中，我们将
+- 看看一整堆其它酷的单子
+- 学习如何创造我们自己的单子
+
+</div>
+<h1 id="220C0724">再来几个单子</h1>
 </div>
