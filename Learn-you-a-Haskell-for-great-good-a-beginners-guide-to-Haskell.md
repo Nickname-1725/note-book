@@ -91,7 +91,7 @@
 - [再来几个单子](#220C0724)
   - [Writer?我根本不知道她！](#485D46DB)
     - [Monoid来救援](#DE89EF2B)
-    - [Writer类](#13DAC708)
+    - [Writer类型](#13DAC708)
     - [Writer配合使用do记号](#9467851D)
     - [给程序加日志](#A09C428D)
     - [差异列表](#8CC3A36C)
@@ -5031,8 +5031,125 @@ Haskell允许任何类型作为任何类型类的实例，只要类型检查通�
 
 </div>
 <h3 id="DE89EF2B">Monoid来救援</h3>
-<h3 id="13DAC708">Writer类</h3>
+<div class="sheet-wrap"><div class="sheet-caption">改进</div>
+
+
+确保你现在知道什么是幺半群！恭喜。
+
+- 现在，`applyLog`获取类型`(a,String)`的值
+- 但是，有什么理由日志必须是字符串吗？它使用++来追加日志，所以这个会对任何种类的列表其作用，不只是字符列表吗？当然是的
+- 我们可以进一步把类型变成这样
+  ``` Haskell
+  applyLog :: (a,[c]) -> (a -> (b,[c])) -> (b,[c])
+  ```
+- 现在，日志是列表了
+- 包含在列表中的值的类型必须和原列表以及函数返回的列表的相同，否则我们不能使用++来把它们粘合在一起
+- 这对字节串（bytestrings）起作用吗？没理由不起作用
+  - 然而，我们我们现在手头上的东西只对列表起作用
+  - 看起来为我们必须给字节串创造一个单独的`applyLog`
+  - 但是等一下！列表和字节串都是幺半群
+  - 因此，它们都是Monoid类型类的示例，这就表示它们实现了`mappend`函数
+  - 对于列表和字节串，`mappend`是用于追加的，看
+    ``` Haskell
+    ghci> [1,2,3] `mappend` [4,5,6]
+    [1,2,3,4,5,6]
+    ghci> B.pack [99,104,105] `mappend` B.pack [104,117,97,104,117,97]
+    Chunk "chi" (Chunk "huahua" Empty)
+    ```
+  - 现在我们的`applyLog`可以对任何幺半群起作用了
+- 我们必须改变类型来反映这个，以及改变实现，因为我们必须把++改成`mappend`
+  ``` Haskell
+  applyLog :: (Monoid m) => (a,m) -> (a -> (b,m)) -> (b,m)
+  applyLog (x,log) f = let (y,newLog) = f x in (y,log `mappend` newLog)
+  ```
+- 因为伴随值现在可以是任何幺半群值，我们不再必须把元组看作值和一个日志；现在我们可以把它看作一个值和一个伴随幺半群值
+
+例如，我们可以有一个元组，具有一个物件名称和一个物件价格作为幺半群值
+- 我们只使用`Sum`这个`newtype`来确保我们操作物件的时候，价格相加
+- 这是一个函数，把饮料加到一些牛仔食物
+  ``` Haskell
+  import Data.Monoid
+  
+  type Food = String
+  type Price = Sum Int
+  
+  addDrink :: Food -> (Food,Price)
+  addDrink "beans" = ("milk", Sum 25)
+  addDrink "jerky" = ("whiskey", Sum 99)
+  addDrink _ = ("beer", Sum 30)
+  ```
+- 我们使用字符串来代表事物，用`Sum`的`newtype`包裹器里面的`Int`来追踪某个东西价值多少分钱
+- 记住，对`Sum`做`mappend`结果是包裹的值加在一起
+  ``` Hasekll
+  ghci> Sum 3 `mappend` Sum 9
+  Sum {getSum = 12}
+  ```
+- `addDrink`函数非常简单
+  - 如果我们在吃豆子，它返回“牛奶”以及`Sum 25`，所以25分钱包裹在`Sum`里面
+  - 如果我们 *略*
+- 现在很清楚，添加的值不总是得是一个日志，它可以是任何幺半群值，两个这样的值如何组合在一起取决于幺半群
+- 因为`addDrink`返回一个类型为`(Food,Price)`的元组，我们可以把那个结果再喂入`addDrink`，从而它告诉我们我们…… *略*
+
+</div>
+<h3 id="13DAC708">Writer类型</h3>
+<div class="sheet-wrap"><div class="sheet-caption">来自Control.Monad.Writer模块的Writer类型</div>
+
+
+- 既然我们看到了一个值带有一个幺半群，表现得像单子值
+- 让我们检验这种值的类型是否作为Monad的示例
+- `Control.Monad.Writetr`模块导出了
+  - `Writer w a`类型
+  - 以及它的`Monad`实例
+  - 还有一些处理这种类型的值有用的函数
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">自己定义Writer类型</div>
+
+
+- 为了把一个幺半群附加到一个值上，我们只需要把它们放到一个元组中
+- 为此，`Writer w a`类型值是一个`newtype`包裹器，它的定义非常简单
+  ``` Haskell
+  newtype Writer w a = Writer { runWriter :: (a, w)}
+  ```
+  - 它被包裹到一个newtype中，所以它可以作为Monad的一个实例，并且它的值与普通元组有所区分
+  - 类型参数`a`代表了值的类型，类型参数`w`代表了被附加的幺半群值的类型
+- 它的`Monad`实例定义如下：
+  ``` Haskell
+  instance (Monoid w) => Monad (Writer w) where
+    return x = Writer (x, mempty)
+    (Writer (x,v)) >>= f = let (writer (y, v')) = f x in Writer (y, v `mappend` v')
+  ```
+  1. 首先，让我们检验`>>=`
+     - 它的实现和`applyLog`特别一样
+     - 只是现在我们的元组被包裹在`Writer`newtype中了，在模式匹配的时候我们需要把它脱去包裹
+     - 我们拿值`x`然后把函数`f`应用于它
+     - 这给我们一个`Writer w a`值，我们使用一个`let`表达式来对它模式匹配
+     - 我们把新的结果表示为`y`，然后使用`mappend`来把旧的幺半群值和新的值组合
+     - 我们将它和结果值打包到一个元组，然后用`Writer`构造器包裹它，因此我们的结果是一个`Writer`值，而不是一个未被包裹的元组
+  2. 那`return`呢？
+     - 它必须获取一个值然后把它放到一个默认最小上下文中，仍然把值表示为结果
+     - 所以对于`Writer`值来说，这种上下文可以是什么？
+     - 如果我们想要伴随的幺半群值尽可能小地影响其它幺半群值，使用`mempty`就说得通
+     - 让我们对数字3使用数次`return`，只是我们每次要使其伴有不同的幺半群
+       ``` Haskell
+       ghci> runWriter (return 3 :: Writer String Int)
+       (3,"")
+       ghci> runWriter (return 3 :: Writer (Sum Int) Int)
+       (3,Sum {getSum = 0})
+       ghci> runWriter (return 3 :: Writer (Product Int) Int)
+       (3,Product {getProduct = 1})
+       ```
+- 因为`Writer`没有`Show`实例，我们必须使用`runWriter`来把我们的`Writer`值转换成普通的、可展示的元组
+- `Writer`实例并不具备实现了`fail`的特性，所以如果模式匹配在do记号中失效了，将会报错
+
+</div>
 <h3 id="9467851D">Writer配合使用do记号</h3>
+<div class="sheet-wrap"><div class="sheet-caption">介绍：Writer值随便使用do记号</div>
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：两个数乘法</div>
+
+</div>
 <h3 id="A09C428D">给程序加日志</h3>
 <h3 id="8CC3A36C">差异列表</h3>
 <h2 id="25420AFC">Reader?啊，别再开这个玩笑了</h2>
