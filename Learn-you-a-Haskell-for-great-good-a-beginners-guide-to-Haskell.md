@@ -5146,8 +5146,69 @@ Haskell允许任何类型作为任何类型类的实例，只要类型检查通�
 <h3 id="9467851D">Writer配合使用do记号</h3>
 <div class="sheet-wrap"><div class="sheet-caption">介绍：Writer值随便使用do记号</div>
 
+
+- 既然我们有了Monad实例，我们现在可以对Writer值随便使用do记号了
+- 当我们有数个Writer值，我们想要对它们做一些事情的时候很方便
+- 和使用其它单子一样，我们可以把它们当作普通的值，而内容为我们取出
+- 在这种情况下，所有被附加的幺半群值被映射于，并且反映在最终结果中
+
 </div>
 <div class="sheet-wrap"><div class="sheet-caption">示例：两个数乘法</div>
+
+
+一个简单的对Writer使用do记号，让两个数字相乘的示例
+``` Haskell
+import Control.Monad.Writer
+
+logNumber :: Int -> Writer [String] Int
+logNumber x = writer (x, ["Got number: " ++ show x])
+-- 实际测试出来需要写"writer"，而非树上的"Writer"
+
+multWithLog :: Writer [String] Int
+multWithLog = do
+  a <- logNumber 3
+  b <- logNumber 5
+  return (a*b)
+```
+- `logNumber`获取一个数字然后从中产生一个`Writer`值
+- 对于幺半群，我们使用了字符串列表，我们让数字装上一个单元素列表，只是说我们有那个数字
+- `multWithLog`是一个`Writer`值，它把3乘以5，然后确保它们附加的日值在最终日志中被包含
+- 我们使用`return`来把`a*b`表示为结果
+- 因为`return`只是获取某些东西然后把它放入最小上下文中，我们可以确信它不会向日志中添加任何东西
+- 如果我们运行它，就会得到
+  ``` Haskell
+  ghci> runWriter multWithLog
+  (15,["Got number: 3","Got number: 5"])
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">tell函数</div>
+
+
+有时候我们只是想让某些幺半群值在特定时刻包含进去
+- 为此，`tell`函数很有用
+- 它是`MonadWriter`类型类的一部分
+- 在`Writer`的情况中，它
+  1. 获取一个`monoid`值，像`["This is going on"]`
+  2. 然后创建一个`Writer`值，把一个打样（dummy）的值`()`表示为它的结果，但是附加上我们想要的monoid值
+  3. 当我们有一个单子值，其结果为`()`，我们不把它绑定到一个变量上
+- `multWithLog`但是带有一些额外的信息：
+  ``` Haskell
+  multWithLog :: Writer [String] Int
+  multWithLog = do
+    a <- logNumber 3
+    b <- logNumber 5
+    tell ["Gonna multiply these two"]
+    return (a*b)
+  ```
+  - 重要的是把`return (a*b)`放到最后一行
+  - 因为do表达式的最后一样的结果就是整个do表达式的结果
+  - 如果我们把`tell`放到最后一行，`()`将会变成这个do表达式的结果，我们会失去乘法的结果，然而，日志仍会是一样的
+  - 测试出来是这样
+    ``` Haskell
+    ghci> runWriter multWithLog
+    (15,["Got number: 3","Got number: 5","Gonna multiply these two"])
+    ```
 
 </div>
 <h3 id="A09C428D">给程序加日志</h3>
