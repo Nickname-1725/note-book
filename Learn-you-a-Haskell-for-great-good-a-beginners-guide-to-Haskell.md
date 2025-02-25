@@ -5212,6 +5212,76 @@ multWithLog = do
 
 </div>
 <h3 id="A09C428D">给程序加日志</h3>
+<div class="sheet-wrap"><div class="sheet-caption">介绍：实现一个带有日志能力的gcd函数</div>
+
+
+欧几里德算法是一种获取两个数字然后计算它们最大公约数的算法
+- 也就是，仍然整除它们的最大的数
+- Haskell已经具有了gcd函数，它就是干这个的
+- 但是让我们实现我们自己的然后让它具有日志能力
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">普通算法</div>
+
+
+普通算法
+``` Haskell
+gcd' :: Int -> Int -> Int
+gcd' a b 
+  | b === 0   = 0
+  | otherwise = gcd' b (a `mod` b)
+```
+算法很简单
+- 它检查第二个值是否是0
+- 如果是，结果是第一个数字
+- 如果不是，结果是第二个数字，和用第一个数字除以第二个数字的余数之间的最大公因数
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">添加日志的gcd'函数</div>
+
+
+我们的新的`gcd'`函数的类型应该是
+``` Haskell
+import Control.Monad.Writer
+
+gcd' :: Int -> Int -> Writer [String] Int
+gcd' a b
+  | b == 0 = do
+      tell ["Finished with " ++ show a]
+      return a
+  | otherwise = do
+      tell [show a ++ " mod " ++ show b ++ " = " ++ show (a `mod` b)]
+      gcd' b (a `mod` b)
+```
+- 这个函数获取了两个普通的Int值然后返回一个`Writer [String] Int`
+- 也就是说，一个带有日志上下文的Int
+- 在b为0的情况下，并没有直接给出a作为结果，我们使用了do表达式来把`Writer`值放到一起作为结果
+  - 首先我们使用了`tell`来报告我们结束了然后我们使用`return`来把a表示为do表达式的结果
+  - 除了这个do表达式，我们还可以写成这样
+    ``` Haskell
+    Writer (a, ["Finished with" ++ show a])
+    ```
+  - 然而，我认为do表达式更容易阅读
+- 我们有b不为零的情况
+  - 这种情形，我们记日志说我们在使用`mod`来弄明白a处以b的余数
+  - 然后，do表达式的第二行只是递归调用了`gcd'`
+  - 记住，`gcd'`现在最终返回一个Writer值，所以``gcd' b (a `mod` b)``在do表达式中绝对是合法的一行
+- 
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">结语</div>
+
+
+我们能够把我们普通的算法改成报告整个过程的算法很伟大
+- 只需要把普通值改成单子值
+- 然后让`Writer`的`>>=`实现帮我们照料日志就好了
+
+我们可以很大程度上任何函数都加上日志机制
+- 我们只需要在我们想要的地方将普通值换成`Writer`
+- 然后把普通函数应用改成`>>=`（或者do表达式，如果它提升可读性的话）
+
+</div>
 <h3 id="8CC3A36C">差异列表</h3>
 <h2 id="25420AFC">Reader?啊，别再开这个玩笑了</h2>
 <h2 id="1869325B">好吃的状态计算</h2>
