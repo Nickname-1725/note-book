@@ -5283,6 +5283,106 @@ gcd' a b
 
 </div>
 <h3 id="8CC3A36C">差异列表</h3>
+<div class="sheet-wrap"><div class="sheet-caption">列表的效率问题</div>
+
+
+当使用`Writer`单子，你必须注意使用何种幺半群
+- 在上面的代码中，我们使用列表，但是把它用作`Writer`的列表非常低效率
+- 因为列表使用++作为mappend，而使用++来把某个东西添加到列表的结尾随着列表增长而变慢
+- 在我们的情况里，每一步都在往列表的结尾添加一个东西！
+- 我们的示例非常小，但是列表越长，我们的程序越慢
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">新的数据结构：差异表</div>
+
+
+为了除掉这种不利，最好使用支持高效追加的数据结构
+- 一种这样的数据结构是差异表（difference list）
+- 一个差异表类似于列表，只是并非是一个普通列表，它是一个函数，获取一个列表然后把另一个列表追加于它
+- 差异表相当于一个像`[1,2,3]`的表，可以是函数`\xs -> [1,2,3] ++ xs`
+- 一个普通的空列表是`[]`，而空的差列表是函数`\xs -> [] ++ xs`
+
+差异表支持高效的追加
+- 当我们用++追加两个普通列表时，它必须一直到达++左边列表的结尾，然后把另一个列表粘在那里
+- 但是如果我们采用差异表的方式，并且把我们的列表表示为函数呢？追加两个不同的列表可以这样
+  ``` Haskell
+  f `append` g = \xs -> f (g xs)
+  ```
+  - 记住，f和g是函数，获取列表并且把一些东西向前追加到它们
+  - 例如
+    - 如果f是函数`("dog"++)`
+    - g是函数`("meat"++)`
+    - 那么``f `append` g``产生一个新的函数，相当于
+      ``` Haskell
+      \xs -> "dog" ++ ("meat" ++ xs)
+      ```
+    - 我们已经追加了两个不同的列表，只是通过产生一个新函数，它先应用一个差异表，然后应用另一个
+
+我们给差异表造一个`newtype`包裹器，然后我们可以容易地给它们幺半群实例
+``` Haskell
+newtype DiffList a = DiffList { getDiffList :: [a] -> [a] }
+```
+- 我们包裹的类型是`[a] -> [a]`，因为差异表只是一个函数，它获取一个列表然后返回另一个
+- 把普通列表转换为差异表以及反过来很简单
+  ``` Haskell
+  toDiffList :: [a] -> DiffList a
+  toDiffList xs = DiffList (xs++)
+
+  fromDiffList :: DiffList a -> [a]
+  fromDiffList (DiffList f) = f []
+  ```
+  - 为了把普通列表变成差异列表，我们只是做了我们之前做过的事情，让它作为一个函数，然后把它向前追加到另一个表
+  - 因为差异表是一个给另一个表准备某些东西的函数，如果我们只是想要那个东西，我们可以把函数应用于一个空列表！
+
+Monoid实例
+``` Haskell
+instance Monoid (DiffList a) where
+  mempty = DiffList (\xs -> [] ++ xs)
+  (DiffList f) `mappend` (DiffList g) = DiffList (\xs -> f (g xs))
+```
+- 注意对于列表，`mempty`只是id函数，`mappend`实际上是函数组合
+
+测试
+``` Haskell
+ghci> fromDiffList (toDiffList [1,2,3,4] `mappend` toDiffList [1,2,3])
+[1,2,3,4,1,2,3]
+```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">高效的gcd'函数</div>
+
+
+现在我们可以提高`gcd'`函数的效率，通过让它使用差异表，而不是普通列表
+``` Haskell
+import Control.Monad.Writer
+
+gcd' :: Int -> Int -> Writer (DiffList String) Int
+gcd' a b
+  | b == 0 = do
+      tell (toDiffList ["Finished with " ++ show a])
+      return a
+  | otherwise = do
+      tell (toDiffList [show a ++ " mod " ++ show b ++ " = " ++ show (a `mod` b)])
+      gcd' b (a `mod` b)
+```
+- 我们只需要
+  - 把幺半群的类型从`[String]`改成`DiffList String`
+  - 当使用`tell`，用`toDiffList`把我们的普通列表转换成差异表
+- 让我们看看日志是不是正确组装了
+  ``` Haskell
+  ghci> mapM_ putStrLn . fromDiffList . snd . runWriter $ gcd' 110 34
+  110 mod 34 = 8
+  34 mod 8 = 2
+  8 mod 2 = 0
+  Finished with 2
+  ```
+  - 我们做了`gcd' 110 34`
+  - 然后用`runWriter`来去掉它的newtype包裹
+  - 然后向它应用了`snd`获取日志
+  - 然后应用了`fromDiffList`来把它转换成普通列表
+  - 最后把它的元素打印到了屏幕
+
+</div>
 <h2 id="25420AFC">Reader?啊，别再开这个玩笑了</h2>
 <h2 id="1869325B">好吃的状态计算</h2>
 <h2 id="43889687">错误错误挂墙上</h2>
