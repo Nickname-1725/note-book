@@ -97,6 +97,9 @@
     - [差异列表](#8CC3A36C)
   - [Reader?啊，别再开这个玩笑了](#25420AFC)
   - [好吃的状态计算](#1869325B)
+    - [一堆石头（stacks and stones）](#2F1494B9)
+    - [State单子](#8138AC02)
+    - [随机性和state单子](#3D6D8755)
   - [错误错误挂墙上](#43889687)
   - [一些有用的单子函数](#FB7BFB5E)
   - [创造单子](#2E8D86CB)
@@ -5478,6 +5481,282 @@ reader单子
 
 </div>
 <h2 id="1869325B">好吃的状态计算</h2>
+<div class="sheet-wrap"><div class="sheet-caption">state单子</div>
+
+
+Haskell是一个纯语言
+- 因此，我们的程序由不能改变任何全局状态或变量的函数组成
+- 它们只能做计算然后返回结果
+- 这个限制实际上让思考程序更加简单了，因为它让我们无需在某刻担心每个变量为何值
+- 尽管这对于Haskell不是一个问题，它们可能对于建模某些东西来说有点冗长
+- 这就是为什么Haskell有一种叫state单子的东西，它用冻结的方式处理状态问题，并且仍然让所有的东西都保持漂亮、纯
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：随机数生成</div>
+
+
+当我们处理随机数，我们处理获取随机数生成器作为参数、返回随机数和新的随机数生成器的函数
+- 如果我们想要生成数个随机数，我们总是必须使用前一个函数随结果返回的随机数生成器
+- 当创造一个函数，它获取`StdGen`然后基于那个生成器三次抛一枚硬币，我们要这样做
+  ``` Hasekll
+  threeCoins :: StdGen -> (Bool, Bool, Bool)
+  threeCoins gen = 
+    let (firstCoin, newGen) = random gen
+        (secondCoin, newGen') = random newGen
+        (thirdCoin, newGen'') = random newGen'
+    in (firstCoin, secondCoin, thirdCoin)
+  ```
+  - 它获取一个生成器`gen`，然后`random gen`返回一个`Bool`值，以及一个新的生成器
+  - 为了抛第二枚硬币，我们使用新的生成器，依次类推
+  - 在其它大多数语言中，我们不会必须返回一个生成器和一个随机数，我们可能只是修改已经有的一个！
+  - 但是既然Haskell是纯的，我们不能那样做，所以我们必须获取某些状态，用它产生一个结果，和一个新的状态，然后使用新的状态来生成新的结果
+- 你可能会想，为了避免像这样手动处理状态计算，我们可能必须放弃Haskell的纯度
+- 我们不需要，因为已经有一个特别的小单子叫做state单子，它帮我们处理所有这种状态的事情，无需放弃任何纯度，这种纯度让Haskell编程如此酷
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">给state单子一个类型</div>
+
+
+为了帮助我们更好地理解这种状态计算的概念，让我们给它们一个类型
+- 我们会说，状态计算是一个函数，它获取一些状态，返回一个值以及某些新的状态
+- 那个函数可能有下面这种类型
+  ``` Haskell
+  s -> (a,s)
+  ```
+  - `s`是状态的类型，`a`是状态计算的结果
+- 赋值在其它绝大多数语言中可能被认为是一种状态计算
+  - 例如，当我们做一门命令式语言中做`x=5`，它通常将会把值5赋给变量x，然后它将也会作为表达式，值为5
+  - 如果你以函数式的方式看它，你可以把它看作一个获取状态的函数（也就是说，之前已经被副值的所有的变量）然后返回一个结果（在这个例子中是5）和一个新的状态，它可能是之前所有的变量应用加上新副值的变量
+  - 这个状态计算，一个获取状态、返回结果和新状态的函数，也可以被认为是一个带有上下文的值
+    - 实际的值是结果
+    - 而上下文是我们必须提供某些初始状态来来真正获得结果，以及我们获取的新状态
+
+</div>
+<h3 id="2F1494B9">一堆石头（stacks and stones）</h3>
+<div class="sheet-wrap"><div class="sheet-caption">让我们模拟操作栈</div>
+
+
+假如我们想要模拟操作一个栈
+- 你有一堆东西一个叠一个
+- 你要么把东西叠到栈顶，要么从栈顶拿掉东西
+- push：你往栈顶放一个东西
+- pop：你从栈顶拿走一个东西
+- 如果你想要某个东西放在栈底，我必须把下面的东西都pop掉
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">实现方式</div>
+
+
+我们使用列表代表我们的栈，列表的头部是栈顶
+- 让我们做两个函数
+  - pop：获取一个栈，返回pop栈顶的东西作为结果，同时也返回一个新的栈，没有那个东西
+  - push：获取一个东西和一个栈，然后把它push到栈顶，它将会返回`()`作为结果，带有一个新的栈
+- 代码实现
+  ``` Hasekll
+  type Stack = [Int]
+
+  pop :: Stack -> (Int,Stack)
+  pop (x:xs) = (x,xs)
+
+  push :: Int -: Stack -> ((),Stack)
+  push a xs = ((),a:xs)
+  ```
+  - 当我们push到栈
+    - 我们使用了`()`作为结果，因为push一个东西到栈上没有任何重要的结果值，它主要的任务就是改变栈
+    - 注意我们如何应用了push的第一个参数，我们得到了一个状态计算
+  - 因为pop的类型，它已经是一个状态计算
+
+让我们写一段代码来使用这些函数模拟栈，我们将会获取一个栈，把3压入栈，然后弹出两个东西，只是为了好玩
+``` Haskell
+stackManip :: Stack -> (Int, Stack)
+stackManip stack = let
+  ((),newStack1) = push 3 stack
+  (a, newStack2) = pop newStack1
+  in pop newStack2
+```
+- 让我们试一试
+  ``` Haskell
+  ghci> stackManip [5,8,2,1]
+  (5,[8,2,1])
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">使用state单子会有什么效果</div>
+
+
+上面的`stackManip`代码有点冗长，因为我们在手动把状态给到每一个状态计算，并且储存它，然后给到下一次计算
+- 如果，不手动给每个函数传栈，而是这样写，难道不酷吗：
+  ``` Haskell
+  stackManip = do
+    push 3
+    a <- pop
+    pop
+  ```
+- 使用state单子恰恰会允许我们这样做
+- 有了state单子，我们就会能够像这样获取状态计算，然后无需手动管理状态就能使用它们
+
+</div>
+<h3 id="8138AC02">State单子</h3>
+<div class="sheet-wrap"><div class="sheet-caption">Control.Monad.State介绍</div>
+
+
+`Control.Monad.State`模块提供给我们一个`newtype`，它包裹了状态计算，这是它的定义
+``` Haskell
+newtype State s a = State { runState :: s-> (a,s) }
+```
+- `State s a`是一种状态计算，它操作类型为`s`的状态，并且具有类型为`a`的结果
+- 既然我们看到了状态计算是跟什么有关的，它们如何能够被认为是带有上下文的值，让我们检查它们的类型实例
+  ``` Haskell
+  instance Monad (State s) where
+    return x = State $ \s -> (x,s)
+    (State h) >>= f = State $ \s -> let (a, newState) = h s
+                                        (State g) = f a
+                                    in g newState
+  ```
+  - 让我们先看看`return`
+    - 我们`return`的目标是获取一个值，创造一个状态计算，它总是以结果的形式范围那个值
+    - 这就是为什么我们做了个`\s -> (x,s)`
+    - 我们总是把`x`呈现为状态计算的结果，而状态保持不变
+    - 因为`return`必须把值放到一个最小的上下文中
+  - 那`>>=`呢
+    - 把一个状态计算用`>>=`喂入到函数中，结果必须是状态计算，对吗？
+    - 所以我们从`State`的`newtype`包裹器开始，然后我们打出lambda
+    - 这个lambda将会成为我们新的状态计算
+    - 但是里面发生了什么呢？
+    - 我们必须以某种方式将结果值从第一个状态计算中提取出来
+    - 因为我们现在正处于状态计算中，我们可以向状态计算`h`提供我们现在的状态`s`，它的结果是一对结果和新状态`(a,newState)`
+    - 到目前为止，每次我们实现`>>=`，一旦我们从单子值中提取出了结果，我们向它应用`f`来获取新的单子值
+    - 在`Writer`中，在做了这个，并且获取新的单子值以后，我们仍然必须确保照顾上下文，通过向旧的幺半群值追加新的幺半群值
+    - 这里，我们做了`f a`然后我们获得了一个新的状态计算`g`
+    - 既然我们有了一个新的状态计算和一个新的状态（带有名称`newState`），我们只要把状态计算`g`应用到`newState`
+    - 结果是一个元组，带有最终结果和最终状态！
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：用State单子实现pop和push</div>
+
+
+所以用`>>=`，我们可以以某种方式把两个状态计算粘连到一起，只是第二个被藏在函数中，那个函数获取前一个状态计算的结果
+- 因为`pop`和`push`已经是状态计算了，很容易把阿它们包裹进一个`State`包裹器，看：
+  ``` Haskell
+  import Control.Monad.State
+  
+  pop :: State Stack Int
+  pop = State $ (\x:xs) -> (x,xs)
+
+  push :: Int -> State Stack ()
+  push a = State $ \xs -> ((),a:xs)
+  ```
+  - `pop`已经是一个状态计算，`push`获取一个`Int`然后返回一个状态计算
+- 现在我们可以把我们之前往栈顶压入`3`，然后弹出两个数字的示例写成这样
+  ``` Haskell
+  import Control.Monad.State
+
+  stackManip :: State Stack Int
+  stackManip = do
+    push 3
+    a <- pop
+    pop
+  ```
+  - 我们如何把一个`push`和两个`pop`粘连成为一个状态计算，看到了吗？
+  - 当我们把它从它的`newtype`包裹器中剥离出来，我们获得了一个函数，向它提供一些初始状态
+    ``` Haskell
+    ghci> runState stackManip [5,8,2,1]
+    (5,[8,2,1])
+    ```
+- 我们不需要把第二个`pop`绑定到`a`，因为我们根本不使用`a`，所以我们也可以把它像这样写
+  ``` Haskell
+  stackManip :: State Stack Int
+  stackManip = do
+    push 3
+    pop
+    pop
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：带条件的pop和push</div>
+
+
+- 那如果我们想要做这个呢？
+  1. 从栈中弹出一个数字
+  2. 如果那个数字是5,我们把它放回栈顶，并停止
+  3. 如果它不是5,我们向栈顶压如3和8
+- 这是代码
+  ``` Haskell
+  stackStuff :: State Stack ()
+  stackStuff = do
+    a <- pop
+    if a == 5
+        then push 5
+        else do
+          push 3
+          push 8
+  ```
+  - 这非常简单，让我们用初始栈运行它
+    ``` Haskell
+    ghci> runState stackStuff [9,0,2,1,0]
+    ((),[8,3,0,2,1,0])
+    ```
+- 记住
+  - do表达式结果是单子值
+  - 如果带有`State`单子，单个do表达式也是状态函数
+- 因为`stackManip`和`stackStuff`是普通的状态计算，我们可以把它们粘连到一起，来进一步创造状态计算
+  ``` Haskell
+  moreStack :: State Stack ()
+  moreStack = do
+    a <- stackManip
+    if a == 100
+      then stackStuff
+      else return ()
+  ```
+  - 如果`stackManip`对于当前栈的结果是100,我们运行`stackStuff`，否则，我们什么都不做
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">MonadState类型类</div>
+
+
+`Control.Monad.State`模块提供了一种叫作`MonadState`的类型类
+- 它含有两个非常有用的函数，也就是`get`和`put`
+- 对于`State`，`get`函数像这样实现
+  ``` Haskell
+  get = State $ \s -> (s,s)
+  ```
+  所以它就是获取当前的状态然后把它呈现为结果
+- `put`函数获取一些状态，然后制造一个状态函数，然后用它替换当前状态
+  ``` Haskell
+  put newState = State $ \s -> ((),newState)
+  ```
+- 所以通过这些，我们可以看到当前的栈是什么，或者我们可以用完全不同的栈替换它，像这样
+  ``` Haskell
+  stackyStack :: State Stack ()
+  stackyState = do
+    stackNow <- get
+    if stackNow == [1,2,3]
+      then put [8,3,1]
+      else put [9,2,1]
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">(>>=)的类型</div>
+
+
+值得检验，如果`>>=`只针对`State`值，类型会是什么
+``` Haskell
+(>>=) :: State s a -> (a -> State s b) -> State s b
+```
+- 看，状态的类型`s`保持一样，但是结果的类型可以从`a`改变到`b`
+- 这表示我们可以把数种结果类型不同的状态计算粘连到一起，但是状态的类型必须保持相同
+- 为什么会这样
+  - 对于`Maybe`，`>>=`有这个类型
+    ``` Haskell
+    (>>=) :: Maybe a -> (a -> Maybe b) -> Maybe b
+    ```
+  - 这说得通，因为单子`Maybe`本身，没有改变
+  - 但是如果在不同的单子之间使用`>>=`，就说不通了
+  - 对于state单子，单子实际上是`State s`，所以如果`s`不同了，我们就是在`>>=`之间使用不同的单子了
+
+</div>
+<h3 id="3D6D8755">随机性和state单子</h3>
 <h2 id="43889687">错误错误挂墙上</h2>
 <h2 id="FB7BFB5E">一些有用的单子函数</h2>
 <h2 id="2E8D86CB">创造单子</h2>
