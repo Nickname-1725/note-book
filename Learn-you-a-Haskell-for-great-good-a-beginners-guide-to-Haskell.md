@@ -5757,6 +5757,50 @@ newtype State s a = State { runState :: s-> (a,s) }
 
 </div>
 <h3 id="3D6D8755">随机性和state单子</h3>
+<div class="sheet-wrap"><div class="sheet-caption">System.Random模块中的random函数</div>
+
+
+这个小节的开头，我们看到了生成数字有时候可以很尴尬
+- 因为每个随机函数获取一个生成器，返回一个随机数和一个新的生成器
+- 必须使用新的生成器，而不是旧的，因为我们想生成另一个随机数
+- state单子让处理这个简单得多
+
+`System.Random`中的`random`函数有以下类型
+``` Haskell
+random :: (RandomGen g, Random a) => g -> (a, g)
+```
+- 意思是它获取一个随机生成器，产生随机数和新的生成器
+- 我们可以看到它是状态计算，所以我们可以把它包裹在`State`的`newtype`构造器中，然后把它作为单子值使用，从而帮我们处理了传递状态：
+  ``` Haskell
+  import System.Random
+  import Control.Monad.State
+
+  randomSt :: (RandomGen g, Random a) => State g a
+  randomSt = State random
+  ```
+- 所以现在如果我们想要抛三次硬币（`True`是背面，`False`是正面），我们只要这样做：
+  ``` Haskell
+  import System.Random
+  import Control.Monad.State
+
+  threeCoins :: State StdGen (Bool,Bool,Bool)
+  threeCoins = do
+    a <- randomSt
+    b <- randomSt
+    c <- randomSt
+    return (a,b,c)
+  ```
+  - `threeCoins`现在是一个状态计算
+  - 在获取初始随机生成器后，它把它传入第一个`randomSt`，它产生一个数和一个新的生成器
+  - 新的生成器被传入下一个，类推
+  - 我们可以用`return (a,b,c)`来把`(a,b,c)`表示为结果，无需改变最近的生成器，让我们试试吧
+    ``` Haskell
+    ghci> runState threeCoins (mkStdGen 33)
+    ((True,False,True),680029187 2103410263)
+    ```
+- 做这些需要某些状态在步骤之间被保留的事情变得不那么麻烦了！
+
+</div>
 <h2 id="43889687">错误错误挂墙上</h2>
 <h2 id="FB7BFB5E">一些有用的单子函数</h2>
 <h2 id="2E8D86CB">创造单子</h2>
