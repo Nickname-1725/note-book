@@ -5802,6 +5802,93 @@ random :: (RandomGen g, Random a) => g -> (a, g)
 
 </div>
 <h2 id="43889687">错误错误挂墙上</h2>
+<div class="sheet-wrap"><div class="sheet-caption">Maybe的局限性</div>
+
+
+我们到目前为止知道`Maybe`被用于向值添加可能失败的上下文
+- 一个值可能是`Just`什么，或者`Nothing`
+- 无论它怎么有用，当我们有一个`Nothing`，我们只知道有某些失败，但是没有办法把一些信息塞进去，好告诉我们是何种失败，以及为什么失败
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Either e a类型的好处</div>
+
+
+另一方面，`Either e a`类型
+- 允许我们把一个可能失败的上下文合并到值中
+- 同时允许添加值到失败，所以它们可以描述什么出错了，或者提供某些其它关于错误的有用信息
+- `Either e a`值可以要么是`Right`值，表示正确的答案和成功，要么它可以是`Left`值，表示失败，例如
+  ``` Hasekll
+  ghci> :t Right 4
+  Right 4 :: (Num t) => Either a t
+  ghci> :t Left "out of cheese error"
+  Left "out of cheese error" :: Either [Char] b
+  ```
+- 这很大程度上只是一个增强版`Maybe`
+- 所以它是个单子也说得通，因为它也可以被看作是值带有额外的可能失败的上下文，只是现在，当有错误的时候也有一个值附加上去
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Either e a的定义</div>
+
+
+`Either e a`的`Monad`实例类似于`Maybe`，它可以在`Control.Monad.Error`中被找到
+``` Haskell
+instance (Error e) => Monad (Either e) where
+  return x = Right x
+  Right x >>= f = f x
+  Left err >>= f = Left err
+  fail msg = Left (strMsg msg)
+```
+- `return`
+  - 和往常一样，获取一个值然后把它放入默认最小上下文中
+  - 它把我们的值包裹在`Right`构造器里面，因为内我们在使用`Right`来代表成功的计算，其中有一个结果
+  - 这很像`Maybe`的`return`
+- `>>=`检验两个可能的情况：`Left`和`Right`
+  - 在`Right`的情况下，函数`f`被应用到里面的值，和`Just`的情况类似，函数只是应用到内容上
+  - 在错误的情况下，`Left`值被保留，以及它的内容，它描述了错误
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">Error类型类</div>
+
+
+- `Either e`的`Monad`实例有一个额外的要求，也就是`Left`内的类型，被用`e`标出的类型参数，必须是`Error`类型类的实例
+  - `Error`类型类是用于一些类型，它们的值可能表现得向错误信息
+  - 它定义了`strMsg`函数，它以字符串的形式获取一个错误，然后返回这样的值
+- `Error`实例的一个好的示例就是，字符串类型！ \
+  *示例略，现在由于库更新了，所以已经不适用了*
+- 既然我们在用`Either`的时候通常使用字符串描述错误，我们不用太担心这个
+- 当模式匹配在do记号中失败的时候，`Left`值被用于表示这个失败
+  ``` Haskell
+  ghci> Left "boom" >>= \x -> return (x+1)
+  Left "boom"
+  ghci> Right 100 >>= \x -> Left "no way"
+  Left "no way!"
+  ```
+- 当我们使用`>>=`来把一个`Left`值喂入函数，函数被忽略，然后返回相同的`Left`值
+- 当我们把`Right`值喂入函数，函数被应用到里面的东西，但是这种情况下，那个函数无论如何都产生一个`Left`值！ \
+  *为什么这个时候不会忽略函数了？*
+- 当我们尝试把`Right`值喂入一个函数，并且成功，我们被一种奇怪的类型错误绊倒了！
+  ``` Haskell
+  ghci> Right 3 >>= \x -> return (x + 100)
+  <interactive>:1:0:
+     Ambiguous type variable `a' in the constraints:
+       `Error a' arising from a use of `it' at <interactive>:1:0-33
+       `Show a' arising from a use of `print' at <interactive>:1:0-33
+     Probable fix: add a type signature that fixes these type variable(s) Haskell
+  ```
+  - Haskell说它不知道选择什么类型作为我们`Either e a`类型值中`e`的部分
+  - 尽管我们只是在打印`Right`的部分
+  - 这是因为对`Monad`实例的`Error e`约束
+  - 所以当你做使用`Either`作为单子时，如果你有像这样的类型错误，只要加上一个显式类型签名
+  ``` Haskell
+  ghci> Right 3 >>= \x -> return (x + 100) :: Either String Int
+  Right 103
+  ```
+  好啦，它起作用了！ \
+  *不对，如果是普通的`Either`，就不会有这种错误，但是带失败的`Either`还没找出来*
+- 除了这个小中断（hangup），使用这种单子非常类似于使用`Maybe`作为单子
+- 做前面的章节中，我们使用了`Maybe`的单子视角来模拟鸟降落在走钢丝的平衡杆和掉落，我们记得当他下落时两边的杆子有多少鸟
+
+</div>
 <h2 id="FB7BFB5E">一些有用的单子函数</h2>
 <h2 id="2E8D86CB">创造单子</h2>
 </div>
