@@ -12,6 +12,20 @@
   - [类型的第一步](#E88F1AFA)
   - [一个简单的程序](#0B039B90)
 - [类型和函数](#03F17ADB)
+  - [为什么关注类型？](#AB56454F)
+  - [Haskell的类型系统](#C7BCFC3C)
+  - [类型系统有哪些精彩看点](#D0D63DCD)
+  - [某些普通的基础类型](#A02889AD)
+  - [函数应用](#580BC7BB)
+  - [有用的复合数据类型：列表和元组](#5E5501A5)
+  - [列表和元组之上的函数](#62BDECBD)
+  - [函数类型和纯度](#2EFA9644)
+  - [Haskell源文件，编写简单的函数](#500085E0)
+  - [通过例子理解求值](#AFD083DB)
+  - [Haskell里的多态](#CFD6F924)
+  - [多于一个入参的函数的类型](#305F5B0C)
+  - [为什么对纯度大惊小怪？](#9F997956)
+  - [结论](#BEA4300C)
 - [定义类型, 流水化函数(Streamlining Functions)](#5290106A)
 - [函数式编程](#D239C5CB)
 - [编写库: 操作JSON数据](#0D9B6827)
@@ -193,7 +207,68 @@ ghci> :type 3 + 2
 
 </div>
 <h2 id="0B039B90">一个简单的程序</h2>
+<div class="sheet-wrap"><div class="sheet-caption">本节介绍</div>
+
+
+让我们前进一小步，写一个小程序，它数出输入的行数
+- 先不要期待理解这个——只不过让我们脏脏手有点好玩
+- 在文本编辑器中，把下列代码输入文件，保存为`WC.hs`
+  ``` haskell
+  -- file: ch01/WC.hs
+  -- lines beginning with "--" are comments.
+  main = interact wordCount
+    where wordCount input = show (length (lines input)) ++ "\n"
+  ```
+- 找一个或者创建一个文本文件，让我们叫它`quux.txt`
+  ``` sh
+  $ cat quux.txt
+  Teignmouth, England
+  Paris, France
+  Ulm, Germany
+  Auxerre, France
+  Brunswick, Germany
+  Beaumont-en-Auge, France
+  Ryazan, Russia
+  ```
+- 从一个shell或者命令行，运行下列命令
+  ``` sh
+  $ runghc WC < quux.txt
+  7
+  ```
+- 我们成功地写了一个简单的程序，它与真实世界互动！
+- 在以后的章节，我们会继续填补我们理解的鸿沟，知道我们可以写出我们自己的程序
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">练习题</div>
+
+
+1. 将下列表达式输入到`ghci`中，它们的类型是什么？ \
+   *题目略，应该使用`:set +t`命令*
+2. 在`ghci`，输入`:?`来打印一些帮助。定义一个变量，例如`let x = 1`，然后打印`:show bindings`，你看到了什么？ \
+   *`:?`显示固定的帮助文字* \
+   *`:show bindings`依次按时间顺序显示当前定义的函数、变量*
+3. `words`函数数出字符串里的单词数。修改`WC.hs`示例，来数出文件里面的单词数。
+   *做了*
+4. 再次修改`WC.hs`示例，来输出文件里面的字符数
+   *做了，办法就是把字符串看成字符列表，直接获取长度即可*
+
+
+</div>
 <h1 id="03F17ADB">类型和函数</h1>
+<h2 id="AB56454F">为什么关注类型？</h2>
+<h2 id="C7BCFC3C">Haskell的类型系统</h2>
+<h2 id="D0D63DCD">类型系统有哪些精彩看点</h2>
+<h2 id="A02889AD">某些普通的基础类型</h2>
+<h2 id="580BC7BB">函数应用</h2>
+<h2 id="5E5501A5">有用的复合数据类型：列表和元组</h2>
+<h2 id="62BDECBD">列表和元组之上的函数</h2>
+<h2 id="2EFA9644">函数类型和纯度</h2>
+<h2 id="500085E0">Haskell源文件，编写简单的函数</h2>
+<h2 id="AFD083DB">通过例子理解求值</h2>
+<h2 id="CFD6F924">Haskell里的多态</h2>
+<h2 id="305F5B0C">多于一个入参的函数的类型</h2>
+<h2 id="9F997956">为什么对纯度大惊小怪？</h2>
+<h2 id="BEA4300C">结论</h2>
 <h1 id="5290106A">定义类型, 流水化函数(Streamlining Functions)</h1>
 <h1 id="D239C5CB">函数式编程</h1>
 <h1 id="0D9B6827">编写库: 操作JSON数据</h1>
