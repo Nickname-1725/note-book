@@ -402,6 +402,51 @@ Haskell的类型有三个有趣的方面
 <h2 id="5E5501A5">有用的复合数据类型：列表和元组</h2>
 <h2 id="62BDECBD">列表和元组之上的函数</h2>
 <h2 id="2EFA9644">函数类型和纯度</h2>
+<div class="sheet-wrap"><div class="sheet-caption">示例：line函数和它的类型签名</div>
+
+
+让我们看看一个函数的类型：
+``` haskell
+ghci> :type lines
+lines :: String -> [String]
+```
+- 我们可以把`->`读作“到”(to)，它大致上可以翻译成“返回”(return)
+- 整个的类型签名读作“ **lines** 具有从 **字符串** 到 **字符串** 列表的类型”
+- 让我们尝试应用函数
+  ``` haskell
+  ghci> lines "the quick\nbrown fox\njumps"
+  ["the quick","brown fox","jumps"]
+  ```
+- **liens** 函数以行作为界限将字符串分解
+- 注意它的类型签名提示我们函数可能做什么。这是函数式语言中类型及其宝贵的特性
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">副作用是什么</div>
+
+
+*副作用* 引入了系统全局状态和函数行为的依赖关系
+- 例如，让我们放下一会Haskell，想想命令式编程语言
+  - 考虑一个函数，它读取并且返回全局变量的值
+  - 如果其它一些代码可以修改全局变量，那么我们的函数的特定应用将会依赖于全局变量的当前值
+  - 函数具有副作用，即使它自身从未修改变量
+
+副作用本质上是函数不可见的输入或不可见的输出
+- 在Haskell中，函数 *默认* 行为是没有副作用的：函数的结果只取决于我们显式提供的输入
+- 我们可以称这些函数 *纯* ，带有副作用的函数 *不纯*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">副作用和类型系统有什么关系</div>
+
+
+如果一个函数具有副作用，我们可以通过阅读它的类型签名知道——
+- 函数结果的类型将会以IO开头
+  ``` haskell
+  ghci> :type readFile
+  readFile :: FilePath -> IO String
+  ```
+- Haskell的类型系统阻止我们不小心把纯和不纯的代码弄混
+
+</div>
 <h2 id="500085E0">Haskell源文件，编写简单的函数</h2>
 <h2 id="AFD083DB">通过例子理解求值</h2>
 <h2 id="CFD6F924">Haskell里的多态</h2>
