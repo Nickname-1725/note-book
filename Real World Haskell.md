@@ -49,6 +49,20 @@
   - [有关模式的常见新手错误](#D1500CB6)
   - [带卫语句的条件求值](#DEC48F52)
 - [函数式编程](#D239C5CB)
+  - [用Haskell思考](#3A48350D)
+  - [一个简单的命令行框架](#3D500890)
+  - [热身：可移植文本分行](#2BB385C9)
+  - [中缀函数](#25D81F3B)
+  - [利用列表](#39D60297)
+  - [如何考虑循环](#70F4055D)
+  - [匿名(lambda)函数](#31DC1298)
+  - [部分函数应用和柯里化](#E2D0C5D1)
+  - [As-模式](#D8249EEC)
+  - [通过组合实现的代码复用](#31CA7310)
+  - [编写可读代码的小提示](#3B0145B6)
+  - [空间泄漏和严格求值](#E67267F5)
+    - [用seq避免空间泄漏](#4FA4664E)
+    - [学习使用seq](#791783D6)
 - [编写库: 操作JSON数据](#0D9B6827)
 - [使用类型类](#5A6899BA)
 - [I/O](#8D899F74)
@@ -706,6 +720,140 @@ True
 <h2 id="D1500CB6">有关模式的常见新手错误</h2>
 <h2 id="DEC48F52">带卫语句的条件求值</h2>
 <h1 id="D239C5CB">函数式编程</h1>
+<h2 id="3A48350D">用Haskell思考</h2>
+<h2 id="3D500890">一个简单的命令行框架</h2>
+<h2 id="2BB385C9">热身：可移植文本分行</h2>
+<h2 id="25D81F3B">中缀函数</h2>
+<h2 id="39D60297">利用列表</h2>
+<h2 id="70F4055D">如何考虑循环</h2>
+<h2 id="31DC1298">匿名(lambda)函数</h2>
+<h2 id="E2D0C5D1">部分函数应用和柯里化</h2>
+<h2 id="D8249EEC">As-模式</h2>
+<h2 id="31CA7310">通过组合实现的代码复用</h2>
+<h2 id="3B0145B6">编写可读代码的小提示</h2>
+<h2 id="E67267F5">空间泄漏和严格求值</h2>
+<div class="sheet-wrap"><div class="sheet-caption">本小节介绍</div>
+
+
+我们之前讨论的 **foldl** 函数不是Haskell代码中空间泄漏唯一能发生的地方
+- 我们可以用它来演示非严格求值有时候可以有问题
+- 以及如何解决可能产生的难题
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">脚印：你需要现在知道所有的这些吗</div>
+
+
+**你需要现在知道所有这些吗？**
+
+- 跳过这一小节非常合理，直到你“在野外”遇到一次空间泄漏
+- 既然你在产生一个列表时使用 **foldr** ，那么如果改用 **foldl'** ，空间泄漏暂时就不会在实践中烦扰你
+
+</div>
+<h3 id="4FA4664E">用seq避免空间泄漏</h3>
+<div class="sheet-wrap"><div class="sheet-caption">严格求值与foldl'函数</div>
+
+
+我们把不惰性求值的表达式称为 *严格* ，所以 **foldl'** 是一个严格左折叠
+- 它通过使用名为 **seq** 的特殊函数，越过了Haskell通常的非严格求值
+  ``` Haskell
+  -- file: ch04/Fold.hs
+  foldl' _    zero []     = zero
+  foldl' step zero (x:xs) =
+    let new = step zero x
+    in  new `seq` foldl' step new xs
+  ```
+  - 这个 **seq** 函数有一个奇怪的类型，暗示它不按照通常的规则出牌
+    ``` Haskell
+    ghci> :type seq
+    seq :: a -> t -> t
+    ```
+  - 它按照下列规则运行
+    - 当 **seq** 表达式被求值，它强迫它的第一个参数被求值，然后返回它的第二个参数
+    - 它实际上不对第一个参数做任何事情
+    - **seq** 只作为一种强迫值被求值的方式存在
+- 让我们过一下简单应用，来看看发生什么吧： \
+  *代码略*
+  - 多亏了 **seq** ，我们没有再看到thunk了
+
+</div>
+<h3 id="791783D6">学习使用seq</h3>
+<div class="sheet-wrap"><div class="sheet-caption">一些有关使用seq的有用规则</div>
+
+
+没有某些方向，有效使用 **seq** 会很困难。这里有一些有用的规则可以用好它
+1. 为了有任何效果， **seq** 表达式必须是表达式中第一个被求值的东西
+   ``` Haskell
+   -- file: ch04/Fold.hs
+   -- 错误的例子：seq被藏在了someFunc的应用中
+   -- 既然someFunc将会第一个被求值，seq可能发生得太晚了
+   hiddenInside x y = someFunc (x `seq` y)
+
+   -- 错误的例子：上面错误的一个变种
+   hiddenByLet x y z = let a = x `seq` someFunc y
+                       in anotherFunc a z
+
+   -- 正确的例子：seq将会被首先求值，强迫x求值
+   onTheOutside x y = x `seq` someFunc y
+   ```
+2. 为了严格求值数个值，把 **seq** 链式应用到一起
+   ``` Haskell
+   -- file: ch04/Fold.hs
+   chained x y z = `seq` y `seq` someFunc z
+   ```
+3. 一个常见错误是尝试对 **seq** 使用两个不相关的表达式
+   ``` Haskell
+   -- file: ch04/Fold.hs
+   badExpression step zero (x:xs) =
+     seq (step zero x)
+         (badExpression step (step zero x) xs)
+   ```
+   - *解读略*
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">seq的作用范围</div>
+
+
+当求值一个表达式， **seq** 在它到达一个构造器时就停止
+- 对于简单的类型，例如数字，这表示它将会完全求值它们
+- 代数数据类型则完全不同
+  - 考虑值`(1+2):(3+4):[]`
+  - 如果我们向它应用 **seq** ，它将会求值`(1+2)`thunk
+  - 既然它将会在到达第一个`(:)`构造器处停止，它将不会对第二个thunk起作用
+  - 对于元组来说也一样： `seq ((1+2), (3+4)) True`将不会对pair内的thunk做任何事情，因为它直接命中pair的构造器
+- 如果有必要的话，我们可以使用普通的函数式编程技术来回避这些限制
+  ``` Haskell
+  -- file: ch04/Fold.hs
+  strictPair (a,b) = a `seq` b `seq` (a,b)
+
+  strictList (x:xs) = x `seq` x : strictList xs
+  strictList []     = []
+  ```
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">seq的代价</div>
+
+
+很重要的是理解 **seq** 不是免费的：它必须在运行时（runtime）进行一次检查，来看表达式是否已经被求值
+- 请节制使用它
+- 例如，当我们的 **strictPair** 函数根据第一个构造器求值一个pair的内容，它增加了开销
+  - 模式匹配
+  - 两次应用 **seq**
+  - 构造一个新的元组
+- 如果我们要在以内部循环的基准测量它的性能，我们可能发现它拖慢了程序
+
+除了过度使用的代价， **seq** 并不是内存消耗问题的奇迹解药
+- 只是因为你 *能* 严格求值某些东西，并不意味着你 *应该*
+- 随意使用 **seq** 可能根本不能做到任何事情，或者把已有的空间泄漏左转腾挪，或是引入新的泄漏
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">seq是否必要的指导</div>
+
+
+- **seq** 是否必要，以及它效果如何，此事最好的指导，就是性能测量和分析（performance measurement and profiling）我们会在第25章介绍
+- 基于经验性的测量，你将会培养何时 **seq** 最有用的可靠直觉
+
+
+</div>
 <h1 id="0D9B6827">编写库: 操作JSON数据</h1>
 <h1 id="5A6899BA">使用类型类</h1>
 <h1 id="8D899F74">I/O</h1>
