@@ -30,6 +30,24 @@
   - [为什么对纯度大惊小怪？](#9F997956)
   - [结论](#BEA4300C)
 - [定义类型, 流水化函数(Streamlining Functions)](#5290106A)
+  - [定义一个新的类型](#F2ECC125)
+  - [类型同义词](#886741FC)
+  - [代数数据类型](#332ADE50)
+    - [元组、代数数据类型，各自何时使用](#E03DC9C3)
+    - [其它语言中类似代数数据类型的概念](#3D759E10)
+[结构体](#8A467BFE)
+[枚举量](#352E9955)
+[可区分联合体(The discriminated union)](#7A04F3E1)
+  - [模式匹配](#CFC3BCB6)
+  - [记录(Record)语法](#23E07770)
+  - [参数化类型](#60EC8B7D)
+  - [递归类型](#8B36D663)
+  - [报告错误](#A4F2087E)
+  - [介绍局部变量](#EAC83D5E)
+  - [表达式中的越位规则(The Offside Rule)和空格](#CB7A1247)
+  - [case表达式](#5C615E22)
+  - [有关模式的常见新手错误](#D1500CB6)
+  - [带卫语句的条件求值](#DEC48F52)
 - [函数式编程](#D239C5CB)
 - [编写库: 操作JSON数据](#0D9B6827)
 - [使用类型类](#5A6899BA)
@@ -468,6 +486,225 @@ lines :: String -> [String]
 
 </div>
 <h1 id="5290106A">定义类型, 流水化函数(Streamlining Functions)</h1>
+<h2 id="F2ECC125">定义一个新的类型</h2>
+<h2 id="886741FC">类型同义词</h2>
+<h2 id="332ADE50">代数数据类型</h2>
+<div class="sheet-wrap"><div class="sheet-caption">示例：Bool是最简单的代数数据类型</div>
+
+
+**Bool** 是最简单的一种被称为 *代数数据类型* （ *algebraic data type* ）的例子
+- 一个代数数据类型可以具有不只一个值构造器
+  ``` haskell
+  -- file: ch03/Bool.hs
+  data Bool = False | True
+  ```
+- **Bool** 类型具有两个值构造器， **True** 和 **False**
+- 每个值构造器在定义中通过`|`字符分隔，我们读作“或”——我们可以构造一个 **Bool** ，具有值 **True** 或值 **False**
+- 当一个类型具有不只一个值构造器时，它们通常被称作 *替代* （ *alternatives* ）或者 *情形* （ *cases* ）
+- 我们可以使用任何一种替代来构造那个类型的一个值
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">脚印：有关命名的笔记</div>
+
+
+**有关命名的笔记**
+
+- 尽管“代数数据类型”这个词很长，我们应该小心避免使用缩略词（acronym）“ADT”
+- 它已经被广泛承认代表“ *抽象数据类型* ”（ *abstract data type* ）
+- 既然Haskell既支持代数数据类型又支持抽象数据类型，我们应该表明清楚，并且完全避免这个缩略词
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：收银信息（值构造器获取参数）</div>
+
+
+每个代数数据类型的值构造器可以获取零个或更多参数
+
+- 例如，有一种方式我们可以表示收银信息
+  ``` haskell
+  -- file: ch03/BookStore.hs
+  type CardHolder = String
+  type CardNumber = String
+  type Address = [String]
+  ```
+  - 如果你熟悉C或者C++，它有点类似于 **typedef**
+  ``` haskell
+  data BillingInfo = CreditCard CardNumber CardHolder Address
+                   | CashOnDelivery
+                   | Invoice CustomerID
+                     deriving (Show)
+  ```
+  - 这里，我们说我们支持三种方式给我们的顾客开账单
+    1. 如果他们想要用信用卡支付，他们必须提供卡号、持卡人姓名、持卡人地址作为 **CreditCard**
+    2. 或者，他们可以付钱给那个给他们寄快递的人。既然我们不需要存储任何额外的信息，我们不给 **CashOnDelivery** （货到付款） 构造器指定任何参数
+    3. 最后，我们可以给指定的顾客送发票，在这种情况下，我们需要她的 **CustomerID** 作为 **Invoice** 构造器的参数
+  - 当我们使用值构造器创建一个类型为 **BillingInfo** 的值，我们必须提供它需要的参数 \
+    *代码略*
+    - **No instance** 错误信息唤起，因为我们没有给 **Invoice** 构造器提供一个参数
+    - 结果我们尝试打印 **Invoice** 构造器本身
+    - 那个构造器需要一个参数才能返回一个值，所以它是一个函数
+    - 我们在Haskell中不能打印函数，这也就是为什么最终解释器抱怨
+
+</div>
+<h3 id="E03DC9C3">元组、代数数据类型，各自何时使用</h3>
+<div class="sheet-wrap"><div class="sheet-caption">如果想，可以用元组代替代数数据类型</div>
+
+
+元组和用户定义的代数数据类型之间有一些重叠
+- 如果我们想，我们之前的 **BookInfo** 类型也可以表示为`(Int, String, [String])`元组
+  ``` haskell
+  ghci> Book 2 "The Wealth of Networks" ["Yochai Benlker"]
+  Book 2 "The Wealth of Networks" ["Yochai Benkler"]
+  ghci> (2, "The wealth of Networks", ["Yochai Benkler"])
+  (2,"The Wealth of Networks",["Yochai Benkler"])
+  ```
+
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">代数数据类型和元组不同之处</div>
+
+
+代数数据类型允许我们区分其它相同的信息
+- 两个具有相同类型元素的元组结构上相同，所以它们具有相同类型 \
+  *代码略*
+- 因为代数数据类型具有不同的名称，即使它们在其它方面结构上相同，它们也具有不同的类型 \
+  *代码略*
+  - 这让我们能够使类型系统在编写程序时有更少的bug
+  - 如果使用我们刚才定义的元组，我们可能可以设想将一头鲸鱼的描述传入一个接收椅子的函数，类型系统可能不会帮助我们
+  - 如果使用代数数据类型，就没有这种可能的混乱了
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：表示二维向量</div>
+
+
+有一个更为巧妙的示例
+- 考虑下面二维向量的表示
+  ``` haskell
+  -- file: ch03/AlgebraicVector.hs
+  -- x and y coordinates or lengths.
+  data Cartesian2D = Cartesian2D Double Double
+                     deriving (Eq, Show)
+  -- Angle and distance (magnitude).
+  data Polar2D = Polar2D Double Double
+                 deriving (Eq, Show)
+  ```
+  - 笛卡尔和极坐标形式的两个元素使用相同的类型
+  - 然而，元素的 *含义* 是不同的
+  - 因为 **Cartesian2D** 和 **Polar2D** 是不同的类型，类型系统将不会允许我们不小心在期望 **Polar2D** 的地方使用 **Cartesian2D** 值，反之亦然
+- 比较相等（错误）
+  ``` haskell
+  ghci> Cartesian2D (sqrt 2) (sqrt 2) == Polar2D (pi / 4) 2
+  -- 报错略
+  ```
+  - `(==)`运算符要求它的参数具有相同类型
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">脚印：相等性比较</div>
+
+
+**相等性比较**
+
+- 注意在我们的向量类型的`deriving`语句中，我们添加了另一个词，`Eq`
+- 这个导致Haskell实现生成代码，允许我们比较值的相等性
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">示例：如果用元组表示值，将很快混淆</div>
+
+
+如果我们使用元组来代表这些值，我们可能很快地混淆两种表示，让我们处于水深火热之中
+``` haskell
+ghci> (1, 2) == (1, 2)
+True
+```
+- 类型系统在这里不能帮助我们：据它所知，我们在比较两个`(Double, Double)`对，这绝对是合法的
+- 实际上，我们不能通过检查判断这些值的哪一个应该是极坐标或是笛卡尔坐标，但是`(1,2)`在各个表示中具有不同的含义
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">小结</div>
+
+
+并没有可靠快速的规则来决定使用元组更好还是不同的数据类型更好，但是有个经验法则
+- 如果你正在你的代码中广泛使用复合值（几乎所有不简单的程序都这样做），加上 **data** 声明将会对你的类型安全和可读性都有益
+- 对于更短的、局部使用，元组通常就很好
+
+</div>
+<h3 id="3D759E10">其它语言中类似代数数据类型的概念</h3>
+<div class="sheet-wrap"><div class="sheet-caption">C/C++中一些类似的东西</div>
+
+
+代数数据类型提供了单一强大的方式表达数据类型
+- 其它语言通常需要数种不同的特性来完成相同的表达力
+- 这里有一些C和C++中类似的东西，可能做到我们用代数数据类型能做的
+- 以及代数数据类型如何跟联系到可能更加熟悉更容易理解的概念
+
+</div>
+<h4 id="8A467BFE">结构体</h4>
+<h4 id="352E9955">枚举量</h4>
+<h4 id="7A04F3E1">可区分联合体(The discriminated union)</h4>
+<div class="sheet-wrap"><div class="sheet-caption">结构体在替代方面的问题</div>
+
+
+- 如果一个代数数据类型具有多个替代（alternatives），我们认为它类似于C或C++中的 **union**
+- 两者的一个大问题是，联合体不会告诉我们它实际上呈现的是何种替代
+- 我们必须显式且手动地追踪我们在用何种替代，通常使用一个封闭结构体的另一个字段
+- 这就表明联合体可能成为危险bug的源头，其中我们使用何种替代的记号是错的
+  ``` C
+  enum shape_type {
+    shape_circle,
+    shape_poly,
+  };
+
+  struct circle {
+    struct vector centre;
+    float radius;
+  };
+
+  struct poly {
+    size_t num_vertices;
+    struct vector *vertices;
+  };
+
+  struct shape
+  {
+    enum shape_type type;
+    union {
+      struct circle circle;
+      struct poly poly;
+    } shape;
+  };
+  ```
+  - 这个例子中， **union** 可以要么 **struct circle** 要么 **struct poly** 的包含有效的数据
+  - 我们必须手动使用 **enum shape_type** 来表明 **union** 里面现在存储的是何种值
+- 这个代码的Haskell版本比起C版本既大大缩短，又更加安全
+  ``` Haskell
+  -- file: ch03/ShapeUnion/hs
+  type Vector = (Double, Double)
+  type Shape = Circle Vector Double
+             | Poly [Vector]
+  ```
+- 如果我们使用 **Circle** 构造器创建了一个 **Shape** 值，保存了我们创造了一个 **Circle** 的事实
+- 当我们之后使用 **Circle** ，我们不会不小心把它作为 **Square** 使用。我们会在第50页，接下来的小节“模式匹配”看到原因
+
+</div>
+<div class="sheet-wrap"><div class="sheet-caption">脚印：几个要点</div>
+
+
+**几个要点**
+
+- 读完之前的小节后，现在应该很清楚我们用 **data** 关键字定义的 *所有* 数据类型都是代数数据类型
+- 有一些可能只有一个替代，其它的则有数个，但是它们都是在使用同一个机制
+
+</div>
+<h2 id="CFC3BCB6">模式匹配</h2>
+<h2 id="23E07770">记录(Record)语法</h2>
+<h2 id="60EC8B7D">参数化类型</h2>
+<h2 id="8B36D663">递归类型</h2>
+<h2 id="A4F2087E">报告错误</h2>
+<h2 id="EAC83D5E">介绍局部变量</h2>
+<h2 id="CB7A1247">表达式中的越位规则(The Offside Rule)和空格</h2>
+<h2 id="5C615E22">case表达式</h2>
+<h2 id="D1500CB6">有关模式的常见新手错误</h2>
+<h2 id="DEC48F52">带卫语句的条件求值</h2>
 <h1 id="D239C5CB">函数式编程</h1>
 <h1 id="0D9B6827">编写库: 操作JSON数据</h1>
 <h1 id="5A6899BA">使用类型类</h1>
